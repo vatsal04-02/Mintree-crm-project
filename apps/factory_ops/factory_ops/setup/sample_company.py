@@ -43,6 +43,28 @@ ITEMS = {
 
 UOM_CONVERSIONS = (("Kg", "Gram", 1000), ("Litre", "Millilitre", 1000))
 
+# SAMPLE two-stage production (placeholder quantities, not a real formula):
+# item: (BOM quantity, process loss %, [(component, qty per BOM quantity)])
+BOMS = {
+	"SAMPLE-BULK-0001": (100, 2, [("SAMPLE-RM-0001", 5), ("SAMPLE-RM-0002", 95)]),
+	"SAMPLE-FG-0001": (1000, 0, [("SAMPLE-BULK-0001", 30), ("SAMPLE-PM-0001", 1000)]),
+}
+
+# Starter wastage reason codes; the client edits the list in Desk.
+WASTAGE_REASONS = {
+	"Spillage": "Material spilled or lost during weighing, charging or transfer.",
+	"Line purge / changeover": "Material used to purge or prime a line at changeover.",
+	"Damaged in handling": "Containers or components damaged in stores or on the line.",
+	"Process failure": "Material spoiled by a failed process step.",
+	"Retained / test sample": "Material taken for retained samples or testing.",
+}
+
+MANUFACTURING_SETTINGS = {
+	# consume what was actually transferred to WIP (less returns), not the BOM figure
+	"backflush_raw_materials_based_on": "Material Transferred for Manufacture",
+	"overproduction_percentage_for_work_order": 0,
+}
+
 
 def financial_year_for(date=None) -> tuple[str, str]:
 	"""Indian financial year (April to March) containing ``date``."""
@@ -78,6 +100,7 @@ def setup_dev_site(company: str = SAMPLE_COMPANY, abbr: str = SAMPLE_ABBR) -> st
 	ensure_next_financial_year()
 	setup_company_masters(company)
 	configure_stock_settings()
+	configure_manufacturing_settings()
 	frappe.db.commit()
 	return company
 
@@ -100,6 +123,11 @@ def configure_stock_settings():
 	"""Stock Settings for the factory (also listed in docs/DATABASE_AND_WORKFLOW_DESIGN.md)."""
 	for field, value in STOCK_SETTINGS.items():
 		frappe.db.set_single_value("Stock Settings", field, value)
+
+
+def configure_manufacturing_settings():
+	for field, value in MANUFACTURING_SETTINGS.items():
+		frappe.db.set_single_value("Manufacturing Settings", field, value)
 
 
 def ensure_next_financial_year():
@@ -126,7 +154,47 @@ def setup_company_masters(company: str) -> dict:
 	ensure_suppliers()
 	ensure_customers()
 	ensure_items()
+	ensure_wastage_reasons()
+	ensure_boms(company)
 	return warehouses
+
+
+def ensure_wastage_reasons():
+	for reason, description in WASTAGE_REASONS.items():
+		if not frappe.db.exists("Wastage Reason", reason):
+			frappe.get_doc(
+				{"doctype": "Wastage Reason", "wastage_reason": reason, "description": description}
+			).insert(ignore_permissions=True)
+
+
+def ensure_boms(company: str) -> dict[str, str]:
+	"""Submitted default BOM per SAMPLE made item and company, bulk first. Idempotent."""
+	boms = {}
+	for item, (quantity, loss, components) in BOMS.items():
+		existing = frappe.db.get_value(
+			"BOM", {"item": item, "company": company, "is_default": 1, "docstatus": 1}, "name"
+		)
+		if not existing:
+			bom = frappe.get_doc(
+				{
+					"doctype": "BOM",
+					"item": item,
+					"company": company,
+					"quantity": quantity,
+					"process_loss_percentage": loss,
+					"rm_cost_as_per": "Valuation Rate",
+					"is_active": 1,
+					"is_default": 1,
+					"items": [
+						{"item_code": code, "qty": qty, "bom_no": boms.get(code)} for code, qty in components
+					],
+				}
+			)
+			bom.insert(ignore_permissions=True)
+			bom.submit()
+			existing = bom.name
+		boms[item] = existing
+	return boms
 
 
 def ensure_customers():

@@ -23,6 +23,7 @@ before_uninstall = "factory_ops.setup.install.before_uninstall"
 # ---------------------------------------------------------------------------
 _guard = "factory_ops.inventory.guards"
 _recv = "factory_ops.inventory.receiving"
+_prod = "factory_ops.production.controls"
 
 doc_events = {
 	"Item": {
@@ -32,8 +33,8 @@ doc_events = {
 		"before_submit": "factory_ops.purchase.approval.validate_purchase_order_approval",
 	},
 	"Stock Entry": {
-		"validate": f"{_guard}.validate_stock_entry",
-		"before_submit": f"{_guard}.validate_stock_entry",
+		"validate": [f"{_guard}.validate_stock_entry", f"{_prod}.validate_wastage_reasons"],
+		"before_submit": [f"{_guard}.validate_stock_entry", f"{_prod}.validate_wastage_reasons"],
 		"on_submit": f"{_guard}.on_inward_submit",
 		"before_cancel": f"{_guard}.before_cancel_stock_entry",
 		"on_cancel": f"{_guard}.on_inward_cancel",
@@ -81,8 +82,13 @@ doc_events = {
 		"before_submit": f"{_guard}.validate_stock_reservation",
 	},
 	"Work Order": {
-		"validate": f"{_guard}.validate_work_order",
+		"before_validate": f"{_prod}.set_work_order_header_defaults",
+		# component sources are defaulted after ERPNext fills required_items, then guarded
+		"validate": [f"{_prod}.set_work_order_component_sources", f"{_guard}.validate_work_order"],
 		"before_submit": f"{_guard}.validate_work_order",
+	},
+	"BOM": {
+		"validate": f"{_prod}.validate_bom",
 	},
 	"Material Request": {
 		"validate": f"{_guard}.validate_material_request",

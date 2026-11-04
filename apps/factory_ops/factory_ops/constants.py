@@ -52,6 +52,9 @@ WAREHOUSE_TREE = (
 	("JOB-WORK", None, WH_TYPE_JOB_WORK, 1),
 )
 
+# Work-in-progress warehouse that Work Orders transfer components into.
+WIP_WAREHOUSE = "WIP-PRODUCTION"
+
 # Default release destination for each hold warehouse (Warehouse.fo_release_warehouse).
 # RETURNS-QC-HOLD releases to FG-STORES (restock).
 RELEASE_MAP = {

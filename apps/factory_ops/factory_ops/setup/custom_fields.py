@@ -140,4 +140,15 @@ CUSTOM_FIELDS = {
 			"description": "Required when stock leaves the Rejected warehouse.",
 		},
 	],
+	"Stock Entry Detail": [
+		{
+			"fieldname": "fo_wastage_reason",
+			"label": "Wastage Reason",
+			"fieldtype": "Link",
+			"options": "Wastage Reason",
+			"insert_after": "t_warehouse",
+			"depends_on": "eval:parent.purpose=='Material Issue'",
+			"description": "Required for every Material Issue except scrap from the Rejected warehouse.",
+		},
+	],
 }

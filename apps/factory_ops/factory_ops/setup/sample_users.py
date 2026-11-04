@@ -25,6 +25,11 @@ SAMPLE_USERS = {
 	"sample.stores@sample.invalid": ("SAMPLE Stores", ["Stock User", "Stock Manager"], None),
 	"sample.qc@sample.invalid": ("SAMPLE QC Officer", [ROLE_QC_OFFICER], None),
 	"sample.qa@sample.invalid": ("SAMPLE QA Manager", [ROLE_QC_OFFICER, ROLE_QA_MANAGER], None),
+	"sample.production@sample.invalid": (
+		"SAMPLE Production",
+		["Manufacturing User", "Manufacturing Manager", "Stock User"],
+		None,
+	),
 	"sample.sales@sample.invalid": ("SAMPLE Sales", ["Sales User", "Stock User"], None),
 	"sample.accounts@sample.invalid": ("SAMPLE Accounts", ["Accounts User", "Accounts Manager"], None),
 }
