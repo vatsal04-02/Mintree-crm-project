@@ -2,7 +2,7 @@
 
 import frappe
 
-from factory_ops.constants import RELEASE_MAP, WAREHOUSE_TREE, WH_TYPE_REJECTED
+from factory_ops.constants import RELEASE_MAP, WAREHOUSE_TREE, WH_TYPE_REJECTED, WIP_WAREHOUSE
 
 
 def wh_name(name: str, company: str) -> str:
@@ -35,4 +35,7 @@ def ensure_warehouse_tree(company: str) -> dict[str, str]:
 
 	for hold, usable in RELEASE_MAP.items():
 		frappe.db.set_value("Warehouse", created[hold], "fo_release_warehouse", created[usable])
+	# seed the company's WIP warehouse once; afterwards it is edited on the Company
+	if not frappe.db.get_value("Company", company, "fo_wip_warehouse"):
+		frappe.db.set_value("Company", company, "fo_wip_warehouse", created[WIP_WAREHOUSE])
 	return created

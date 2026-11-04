@@ -13,6 +13,7 @@ the client confirms real data.
 import frappe
 from frappe.utils import getdate, nowdate
 
+from factory_ops.constants import RELEASE_MAP
 from factory_ops.setup.install import apply_setup
 from factory_ops.setup.warehouses import ensure_warehouse_tree, wh_name
 
@@ -119,10 +120,11 @@ STOCK_SETTINGS = {
 }
 
 
-def configure_stock_settings():
+def configure_stock_settings(skip: tuple[str, ...] = ()):
 	"""Stock Settings for the factory (also listed in docs/DATABASE_AND_WORKFLOW_DESIGN.md)."""
 	for field, value in STOCK_SETTINGS.items():
-		frappe.db.set_single_value("Stock Settings", field, value)
+		if field not in skip:
+			frappe.db.set_single_value("Stock Settings", field, value)
 
 
 def configure_manufacturing_settings():
@@ -155,6 +157,7 @@ def setup_company_masters(company: str) -> dict:
 	ensure_customers()
 	ensure_items()
 	ensure_wastage_reasons()
+	ensure_wastage_account(company)
 	ensure_boms(company)
 	return warehouses
 
@@ -165,6 +168,35 @@ def ensure_wastage_reasons():
 			frappe.get_doc(
 				{"doctype": "Wastage Reason", "wastage_reason": reason, "description": description}
 			).insert(ignore_permissions=True)
+
+
+def ensure_wastage_account(company: str) -> str | None:
+	"""A 'Production Wastage' expense account under Stock Expenses, set on the Company once."""
+	if frappe.db.get_value("Company", company, "fo_wastage_account"):
+		return frappe.db.get_value("Company", company, "fo_wastage_account")
+	parent = frappe.db.get_value(
+		"Account", {"company": company, "account_name": "Stock Expenses", "is_group": 1}, "name"
+	)
+	if not parent:
+		return None
+	account = frappe.db.get_value("Account", {"company": company, "account_name": "Production Wastage"})
+	if not account:
+		account = (
+			frappe.get_doc(
+				{
+					"doctype": "Account",
+					"account_name": "Production Wastage",
+					"parent_account": parent,
+					"company": company,
+					"root_type": "Expense",
+					"report_type": "Profit and Loss",
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+	frappe.db.set_value("Company", company, "fo_wastage_account", account)
+	return account
 
 
 def ensure_boms(company: str) -> dict[str, str]:
@@ -254,6 +286,9 @@ def ensure_item_groups(company: str):
 		if not default:
 			default = doc.append("item_group_defaults", {"company": company})
 		default.default_warehouse = wh_name(warehouse, company)
+		# production draws the group's items from the usable store (seeded once; editable)
+		if not default.get("fo_production_warehouse"):
+			default.fo_production_warehouse = wh_name(RELEASE_MAP[warehouse], company)
 		doc.save(ignore_permissions=True)
 
 

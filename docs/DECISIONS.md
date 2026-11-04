@@ -127,3 +127,46 @@ normal ERPNext way with perpetual inventory on, like the SAMPLE company.
 April–March FY) then the same master-data code the tests use. Sample users get random passwords
 written to `sites/<site>/private/sample_users.json` (mode 600, outside the repository); creating them
 refuses to run unless developer mode is on.
+
+## Milestone 4: production (2026-11-05)
+
+**D-020 Production is standard ERPNext.** Two BOMs per product (BULK from RM in kg; FG from BULK + PM in
+units), two Work Orders, Material Transfer for Manufacture and Manufacture entries, ERPNext's own
+process loss, batch creation and expiry from shelf life. Backflush is "Material Transferred for
+Manufacture", so consumption follows what reached WIP (less returns), not the BOM figure. factory_ops
+only adds the controls in `production/controls.py` and the batch label. Workflow:
+`PRODUCTION_WORKFLOW.md`.
+
+**D-021 Production warehouses are configuration.** ERPNext fills a Work Order component's source from the
+item-group default warehouse. For QC groups that is the QC Hold warehouse (it is where purchases are
+received), so every new Work Order was refused by the QC guard. Hard-coding "RM-STORES" in code was
+rejected. Instead:
+- a *Production Source Warehouse* field sits on Item Defaults (item beats group); without it, the
+  QC release destination of the default warehouse is used;
+- the WIP warehouse is a Company field;
+- only rows ERPNext filled during this save are redirected. Rows typed by a user or set on the BOM are
+  kept as entered and then checked by the guards, so a manual QC Hold or Rejected source is refused,
+  never silently changed.
+
+**D-022 Two-stage rule.** ERPNext's *Use Multi-Level BOM* defaults to on and would explode the bulk into
+its raw materials, skipping bulk QC entirely (found by the first FG test run). New Work Orders whose BOM
+holds a QC-controlled made component get it off; turning it on is refused on save and submit.
+
+**D-023 Wastage is a Stock Entry Type, not every Material Issue.** The first draft required a reason on
+every Material Issue, which would have mislabelled ordinary issues (to R&D, samples) as wastage. Now a
+Stock Entry Type flagged *Wastage write-off* (seeded: "Wastage", purpose Material Issue) requires an
+enabled Wastage Reason on every row and posts to the Company's *Wastage Expense Account*. A reason on any
+other entry is refused, so wastage cannot be filed as an ordinary issue. Manufacture consumption and
+process loss need no reason. Scrap from REJECTED keeps its disposal reason (G2).
+
+**D-024 Test valuation method.** ERPNext's test bootstrap saves Stock Settings with FIFO on every test
+run and refuses to change the valuation method once transactions exist. Our test setup used to set
+Moving Average, so every *second* run on the same test site failed during test discovery. CI always
+starts from a fresh site, so it never showed this. Tests now leave the valuation method to ERPNext's
+bootstrap; real sites still get Moving Average from `setup_dev_site`.
+
+**D-025 Batch label.** A standard Jinja Print Format on Batch, rendered by Frappe's Chrome PDF generator
+on a 100 × 60 mm page. The page size and margins must be in the Print Format's `css` field (`@page`):
+Frappe's Chrome generator reads them from there and otherwise applies 15 mm margins. A standard Print
+Format is reloaded on migrate only when its `modified` timestamp changes. The QC status is printed as
+a band, white on black for HOLD and REJECTED. Barcode/QR and ZPL are Phase 4.

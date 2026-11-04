@@ -56,7 +56,43 @@ python deploy/dev/acceptance_http.py http://127.0.0.1:8000 factory.localhost sit
 node deploy/dev/ui_check.js sites/factory.localhost/private/sample_users.json /tmp/shots <reject QC Release> <draft QC Release> <held batch>
 ```
 
+Production acceptance (after `acceptance_http.py`, same site and credentials). It prints the FG Work
+Order and held FG batch for the browser check:
+
+```bash
+python deploy/dev/acceptance_production_http.py http://127.0.0.1:8000 factory.localhost sites/factory.localhost/private/sample_users.json
+```
+
+```bash
+node deploy/dev/ui_check_production.js sites/factory.localhost/private/sample_users.json /tmp/shots <FG Work Order> <held FG batch>
+```
+
+Background workers and scheduler (development; production uses the frappe_docker services). Run each in
+its own terminal from the bench directory:
+
+```bash
+bench worker --queue short,default,long
+```
+
+```bash
+bench schedule
+```
+
+```bash
+bench --site factory.localhost enable-scheduler
+```
+
+`bench doctor` lists workers online; `Scheduled Job Type.last_execution` (site time, IST) shows the
+scheduler running. The dev-site check enqueued a job and the nightly
+`factory_ops.quality.batch_status.nightly_consistency_check` through the worker; both finished.
+
 Known setup pitfalls found while building:
+- Docker Hub can refuse anonymous pulls with HTTP 429 (rate limit). Development workaround: pull the same
+  images from Google's mirror and tag them with the names the compose file uses, then re-run the script:
+  `docker pull mirror.gcr.io/library/mariadb:11.8 && docker tag mirror.gcr.io/library/mariadb:11.8 mariadb:11.8`
+  (likewise `mirror.gcr.io/valkey/valkey:8.1-alpine`).
+- A standard Print Format (e.g. Batch Label) is reloaded on `migrate` only when the `modified`
+  timestamp in its JSON changes. Bump it with every edit.
 - bench refuses to run as root.
 - `mysqlclient` needs `libmariadb-dev` and `pkg-config`, otherwise `bench init` fails part-way. Delete
   the half-built bench and re-run.

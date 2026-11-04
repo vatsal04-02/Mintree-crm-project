@@ -3,21 +3,29 @@
 The production flow itself is ERPNext's (DECISIONS D-020): a BULK Work Order in kg, then a
 fill-and-pack FG Work Order in units that consumes the released bulk. factory_ops adds:
 
-- **Warehouse defaults** for Work Orders: WIP-PRODUCTION, output into the item's QC Hold
-  warehouse, and each component drawn from its group's usable store (RM-STORES, PM-STORES,
-  BULK-STORES). The QC guards (``inventory/guards.py``) still check whatever ends up set.
+- **Warehouse defaults** for Work Orders, all read from configuration (D-021):
+  WIP = ``Company.fo_wip_warehouse``; output = the item's default warehouse (its QC Hold);
+  each component = the "Production Source Warehouse" on the item's Item Default for the company,
+  else on its item group's, else the QC release destination of its default warehouse.
+  ERPNext fills component sources from the item-group default, which for QC groups is the QC
+  Hold warehouse; only rows ERPNext filled itself are redirected. A source entered by a user is
+  kept, and the QC guards (``inventory/guards.py``) refuse it if it is restricted.
 - **BOM guard**: a BOM line may not name a QC Hold or Rejected source warehouse.
-- **Wastage reasons**: every Material Issue row (stock written off) needs an enabled Wastage
-  Reason, except scrap from the Rejected warehouse, which has its own disposal reason (G2).
+- **Wastage** (D-022): a write-off is a Stock Entry whose Stock Entry Type is flagged
+  "Wastage write-off" (seeded type: "Wastage", purpose Material Issue). Every row needs an
+  enabled Wastage Reason and posts to ``Company.fo_wastage_account``. Ordinary Material Issues
+  and manufacturing consumption need no reason, and a reason on them is refused so wastage is
+  never misfiled.
 """
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
-from factory_ops.constants import WIP_WAREHOUSE
 from factory_ops.inventory.guards import QCGuardError
-from factory_ops.inventory.stock_queries import is_qc_hold, is_rejected, is_restricted
-from factory_ops.setup.warehouses import wh_name
+from factory_ops.inventory.stock_queries import is_qc_hold, is_restricted
+
+WASTAGE_TYPE = "Wastage"
 
 
 class WastageReasonError(frappe.ValidationError):
@@ -25,39 +33,81 @@ class WastageReasonError(frappe.ValidationError):
 
 
 # ---------------------------------------------------------------------------
-# Warehouse defaults
+# Warehouse resolution (configuration, not code)
 # ---------------------------------------------------------------------------
+def _item_default(parenttype: str, parent: str | None, company: str, field: str) -> str | None:
+	if not parent:
+		return None
+	return frappe.db.get_value(
+		"Item Default", {"parenttype": parenttype, "parent": parent, "company": company}, field
+	)
+
+
 def default_item_warehouse(item_code: str, company: str) -> str | None:
 	"""Item-level default warehouse for the company, else the item group's."""
-	from erpnext.setup.doctype.item_group.item_group import get_item_group_defaults
-	from erpnext.stock.doctype.item.item import get_item_defaults
-
-	defaults = get_item_defaults(item_code, company) or {}
-	if defaults.get("default_warehouse"):
-		return defaults["default_warehouse"]
-	return (get_item_group_defaults(item_code, company) or {}).get("default_warehouse")
+	group = frappe.get_cached_value("Item", item_code, "item_group")
+	return _item_default("Item", item_code, company, "default_warehouse") or _item_default(
+		"Item Group", group, company, "default_warehouse"
+	)
 
 
-def usable_store(item_code: str, company: str) -> str | None:
-	"""Where production draws an item from: the release destination of its QC Hold default
-	(RM-QC-HOLD -> RM-STORES), or the default itself when it is already usable."""
+def production_source(item_code: str, company: str) -> str | None:
+	"""Where production draws an item from (configured on Item Default, item before group)."""
+	group = frappe.get_cached_value("Item", item_code, "item_group")
+	configured = _item_default("Item", item_code, company, "fo_production_warehouse") or _item_default(
+		"Item Group", group, company, "fo_production_warehouse"
+	)
+	if configured:
+		return configured
 	default = default_item_warehouse(item_code, company)
-	if not default:
-		return None
-	if is_qc_hold(default):
+	if default and is_qc_hold(default):
 		return frappe.get_cached_value("Warehouse", default, "fo_release_warehouse")
 	return None if is_restricted(default) else default
 
 
 def wip_warehouse(company: str) -> str | None:
-	name = wh_name(WIP_WAREHOUSE, company)
-	return name if frappe.db.exists("Warehouse", name) else None
+	return frappe.get_cached_value("Company", company, "fo_wip_warehouse")
+
+
+# ---------------------------------------------------------------------------
+# Work Order
+# ---------------------------------------------------------------------------
+def qc_subassemblies(bom_no: str | None) -> list[str]:
+	"""Components of a BOM that are made in-house (have a BOM) and need QC release, e.g. bulk."""
+	if not bom_no:
+		return []
+	return [
+		r.item_code
+		for r in frappe.get_all(
+			"BOM Item", filters={"parent": bom_no, "bom_no": ("is", "set")}, fields=["item_code"]
+		)
+		if cint(frappe.get_cached_value("Item", r.item_code, "fo_qc_required"))
+	]
 
 
 def set_work_order_header_defaults(doc, method=None):
-	"""before_validate: WIP and output warehouses, before ERPNext validates them."""
+	"""before_validate: WIP and output warehouses, before ERPNext validates them. Also remember
+	which component rows the user supplied, so only rows ERPNext adds are redirected."""
+	doc.flags.fo_user_rows = {id(row) for row in doc.get("required_items") or []}
 	if not doc.get("company") or not doc.get("production_item"):
 		return
+	if not doc.get("bom_no"):
+		# Desk fetches the default BOM in the browser; API and data-import users get it here
+		doc.bom_no = frappe.db.get_value(
+			"BOM",
+			{
+				"item": doc.production_item,
+				"company": doc.company,
+				"is_default": 1,
+				"is_active": 1,
+				"docstatus": 1,
+			},
+			"name",
+		)
+	# Two-stage production: ERPNext defaults use_multi_level_bom to 1, which would explode the bulk
+	# into its raw materials and skip bulk QC. New orders consume the released sub-assembly.
+	if doc.is_new() and qc_subassemblies(doc.get("bom_no")):
+		doc.use_multi_level_bom = 0
 	if not doc.get("wip_warehouse") and not doc.get("skip_transfer"):
 		doc.wip_warehouse = wip_warehouse(doc.company)
 	if not doc.get("fg_warehouse"):
@@ -65,13 +115,37 @@ def set_work_order_header_defaults(doc, method=None):
 
 
 def set_work_order_component_sources(doc, method=None):
-	"""validate: ERPNext fills required_items from the BOM in its own validate; give every
-	component without a source warehouse its usable store."""
-	if not doc.get("company"):
-		return
+	"""validate (after ERPNext's own validate filled required_items from the BOM)."""
+	if not doc.get("company") or doc.get("source_warehouse"):
+		return  # a header source applies to every row and is guarded as entered
+	user_rows = doc.flags.get("fo_user_rows") or set()
+	bom_sources = {
+		r.item_code: r.source_warehouse
+		for r in frappe.get_all(
+			"BOM Item", filters={"parent": doc.bom_no}, fields=["item_code", "source_warehouse"]
+		)
+		if r.source_warehouse
+	}
 	for row in doc.get("required_items") or []:
-		if not row.get("source_warehouse"):
-			row.source_warehouse = usable_store(row.item_code, doc.company)
+		if id(row) in user_rows or row.item_code in bom_sources:
+			continue  # entered by a user, or set on the BOM: keep it (guarded)
+		if not row.get("source_warehouse") or is_restricted(row.source_warehouse):
+			row.source_warehouse = production_source(row.item_code, doc.company) or row.source_warehouse
+
+
+def validate_two_stage(doc, method=None):
+	"""validate / before_submit: a QC-controlled sub-assembly must be consumed as released stock."""
+	if not cint(doc.get("use_multi_level_bom")):
+		return
+	items = qc_subassemblies(doc.get("bom_no"))
+	if items:
+		frappe.throw(
+			_(
+				"{0} is made in a separate Work Order and must pass QC before use. Turn off 'Use Multi-Level BOM' so this order consumes released {0} instead of its raw materials."
+			).format(", ".join(items)),
+			exc=QCGuardError,
+			title=_("Blocked by QC control"),
+		)
 
 
 # ---------------------------------------------------------------------------
@@ -90,18 +164,40 @@ def validate_bom(doc, method=None):
 
 
 # ---------------------------------------------------------------------------
-# Wastage reasons
+# Wastage
 # ---------------------------------------------------------------------------
-def validate_wastage_reasons(doc, method=None):
-	if doc.purpose != "Material Issue":
+def is_wastage_entry(doc) -> bool:
+	return bool(doc.get("stock_entry_type")) and bool(
+		cint(frappe.get_cached_value("Stock Entry Type", doc.stock_entry_type, "fo_is_wastage"))
+	)
+
+
+def validate_stock_entry_type(doc, method=None):
+	if cint(doc.get("fo_is_wastage")) and doc.purpose != "Material Issue":
+		frappe.throw(_("A wastage write-off type must have the purpose Material Issue."), WastageReasonError)
+
+
+def validate_wastage(doc, method=None):
+	if not is_wastage_entry(doc):
+		for row in doc.items:
+			if row.get("fo_wastage_reason"):
+				frappe.throw(
+					_(
+						"Row #{0}: a Wastage Reason is set but this is not a wastage entry. Use the Stock Entry Type {1} to write off wastage."
+					).format(row.idx, WASTAGE_TYPE),
+					WastageReasonError,
+				)
 		return
+	account = frappe.get_cached_value("Company", doc.company, "fo_wastage_account")
 	for row in doc.items:
-		if not row.s_warehouse or is_rejected(row.s_warehouse):
-			continue  # scrap from Rejected is covered by the disposal reason (guards G2)
+		if not row.s_warehouse or row.t_warehouse:
+			frappe.throw(
+				_("Row #{0}: wastage is written off from a warehouse.").format(row.idx), WastageReasonError
+			)
 		reason = row.get("fo_wastage_reason")
 		if not reason:
 			frappe.throw(
-				_("Row #{0}: select a Wastage Reason for issuing {1} from {2}.").format(
+				_("Row #{0}: select a Wastage Reason for writing off {1} from {2}.").format(
 					row.idx, row.item_code, row.s_warehouse
 				),
 				WastageReasonError,
@@ -110,3 +206,5 @@ def validate_wastage_reasons(doc, method=None):
 			frappe.throw(
 				_("Row #{0}: Wastage Reason {1} is disabled.").format(row.idx, reason), WastageReasonError
 			)
+		if account:
+			row.expense_account = account

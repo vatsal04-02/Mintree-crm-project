@@ -116,7 +116,60 @@ deploy/dev/acceptance_http.py, deploy/dev/ui_check.js, deploy/dev/setup-dev.sh (
 docs/screenshots/qc/*.png
 ```
 
+## Milestone 4 — Production — **done (SAMPLE data), acceptance tests pass**
+
+Workflow, configuration and controls: `PRODUCTION_WORKFLOW.md`. Decisions D-020 to D-025. Test
+evidence: `PHASE_1_TEST_RESULTS.md` (Milestone 4 section).
+
+**Built (standard ERPNext manufacturing + factory_ops controls)**
+- SAMPLE BOMs: BULK 100 kg from two RMs with 2 % process loss; FG 1,000 units from 30 kg bulk +
+  1,000 bottles (bulk as a sub-assembly). Manufacturing Settings: backflush on material transferred,
+  no overproduction.
+- Work Order defaults from configuration: default BOM (for API/import users), WIP from the Company,
+  output into the item's QC Hold warehouse, each component from its *Production Source Warehouse*
+  (Item Default, item before group) or the QC release destination. Only rows ERPNext filled are
+  redirected; anything entered by a user is kept and guarded.
+- Two-stage rule: a QC-controlled sub-assembly (bulk) is never exploded into its raw materials.
+- BOM guard: no QC Hold / Rejected source warehouse on a BOM line.
+- Wastage: **Wastage Reason** DocType, Stock Entry Type "Wastage" (flag *Wastage write-off*), reason
+  required on every row, posting to the Company's *Wastage Expense Account*. Ordinary issues and
+  manufacturing consumption need no reason; a reason on them is refused.
+- **Batch Label** print format: 100 × 60 mm PDF with batch, item, dates, quantity, Work Order and QC status.
+- SAMPLE production user (Manufacturing User/Manager + Stock User).
+
+**Found and fixed while validating (not just written)**
+| Problem | Effect | Fix |
+| --- | --- | --- |
+| ERPNext fills component sources from the item-group default, i.e. the QC Hold warehouse | every new Work Order was refused by the guard | configurable production source warehouse; only ERPNext-filled rows redirected (D-021) |
+| *Use Multi-Level BOM* defaults to on | the FG order consumed RM directly, skipping bulk QC | two-stage rule (D-022) |
+| First wastage rule applied to every Material Issue | ordinary issues would be mislabelled as wastage | wastage is a flagged Stock Entry Type with its own account (D-023) |
+| Work Order BOM filled only in the browser | REST / import users got "BOM No is mandatory" | server-side default BOM |
+| Test setup set Moving Average, ERPNext's bootstrap saves FIFO | every second test run on the same site failed at discovery (pre-existing; CI never saw it) | tests keep ERPNext's test valuation method (D-024) |
+| Label rendered over two pages with 15 mm margins | unusable label | page size and margins in the Print Format's `@page` css (D-025) |
+
+**Files**
+```
+apps/factory_ops/factory_ops/
+  production/controls.py                              Work Order defaults, two-stage rule, BOM guard, wastage
+  production/doctype/wastage_reason/                  Wastage Reason DocType
+  production/print_format/batch_label/                Batch Label print format
+  hooks.py, modules.txt                               Work Order, BOM, Stock Entry, Stock Entry Type hooks; Production module
+  setup/custom_fields.py                              Item Default, Company, Stock Entry Type, Stock Entry Detail fields
+  setup/install.py                                    Wastage stock entry type
+  setup/sample_company.py, setup/warehouses.py        BOMs, wastage reasons/account, production sources, WIP, Manufacturing Settings
+  setup/sample_users.py                               SAMPLE production user
+  tests/test_production.py                            15 tests (12 controls, 3 end-to-end on a perpetual-inventory company)
+  tests/utils.py                                      valuation-method fix (D-024)
+deploy/dev/acceptance_production_http.py              HTTP production acceptance (15 checks)
+deploy/dev/ui_check_production.js                     browser check of production screens (14 checks)
+docs/PRODUCTION_WORKFLOW.md (new), DECISIONS.md, OPEN_ISSUES.md, PHASE_1_TEST_RESULTS.md, HANDOFF_NOTES.md,
+DEPLOYMENT_RUNBOOK.md, docs/screenshots/production/*.png
+```
+
+**Not included** (`PRODUCTION_WORKFLOW.md` §7): barcode/QR and ZPL label, yield variance alert,
+rework orders, electronic batch record, operations/job cards, Production Plan/MRP configuration,
+real formulas.
+
 ## Next milestones
-4. Production: bulk and FG BOMs, two-stage work orders, consumption, output to hold, FG release.
 5. Sales, dispatch and accounts, and the end-to-end GL-reconciling test.
 6. Master-data import templates, role workspaces, reports.

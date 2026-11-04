@@ -172,6 +172,8 @@ nightly job checks it against the warehouse balances.
 - From there the flow is the same QC queue → QI (In Process for bulk, Outgoing for FG) → QC
   Release.
 - Filling consumes bulk only from `BULK-STORES`, so unreleased bulk cannot be filled.
+- As implemented in Milestone 4, with configurable warehouses, the two-stage rule and wastage
+  write-offs: `PRODUCTION_WORKFLOW.md` (DECISIONS D-020 to D-025).
 
 **Returns:** the Sales Return posts to `RETURNS-QC-HOLD`. QC Release decides restock (to
 FG-STORES), rework (to WIP via a rework Work Order) or reject.

@@ -1,12 +1,12 @@
 # Handoff notes
 
 Context for whoever continues this work: FlowHQ, the client, or a new Claude Code session in a fresh
-container. Last updated 2026-11-05, end of the validation round and Milestone 3.
+container. Last updated 2026-11-05, end of Milestone 4 (production).
 
 ## Where things stand
 
-- **Branch:** `claude/festive-feynman-8mue4s`. Everything is committed and pushed. No pull request has
-  been opened.
+- **Branch:** `claude/cool-shannon-dszfvp` (continues `claude/festive-feynman-8mue4s`; history kept,
+  nothing rewritten). Everything is committed and pushed. No pull request has been opened.
 - **Stack (pinned, verified):**
   - Frappe v16.55.2 and ERPNext v16.53.0;
   - CPython 3.14 and Node 24;
@@ -18,24 +18,27 @@ container. Last updated 2026-11-05, end of the validation round and Milestone 3.
   - development environment;
   - QC quarantine and release engine (QC Release, QC Deviation, QC Retest, guards on every stock route);
   - purchase and inventory: SAMPLE company, approval limits, GRN supplier batch/dates/COA, Stock by QC
-    Status report.
+    Status report;
+  - production: SAMPLE BOMs, two-stage Work Orders, configurable production warehouses, wastage
+    write-offs, batch label (`PRODUCTION_WORKFLOW.md`).
 - **Test evidence:** `PHASE_1_TEST_RESULTS.md`.
-  - 77 local tests pass; CI on GitHub Actions passes.
-  - Clean-environment run passes.
-  - HTTP acceptance passes 16/16; browser check passes 17/17.
+  - 92 tests pass (77 earlier + 15 production), on the dev bench and twice in a row on a clean,
+    independent bench; a site installed from nothing has the full setup.
+  - HTTP acceptance 16/16 (purchase/QC) and 15/15 (production); browser checks 17/17 (QC) and 14/14
+    (production); workers and scheduler verified running jobs.
 - **Not started (by instruction):** R&D, marketplace integrations, AI.
 - **Not yet built:**
-  - production (Milestone 4);
   - sales, dispatch and accounts end to end (Milestone 5);
   - import templates, workspaces and dashboards (Milestone 6).
 
 ## Read these first
 
 1. `IMPLEMENTATION_PROGRESS.md`: what was built per milestone.
-2. `DECISIONS.md`: D-001 to D-019, the why behind every non-obvious choice.
+2. `DECISIONS.md`: D-001 to D-025, the why behind every non-obvious choice (D-020 to D-025: production).
 3. `OPEN_ISSUES.md`: client inputs still needed and technical gaps.
 4. `DATABASE_AND_WORKFLOW_DESIGN.md` §3: the QC workflow as implemented (spike result in §3.2a).
 5. `DEPLOYMENT_RUNBOOK.md`: how to rebuild the environment and run every check.
+6. `PRODUCTION_WORKFLOW.md`: the production flow, its configuration and what is excluded.
 
 ## The container is temporary
 
@@ -63,6 +66,9 @@ Session-specific details you will not need elsewhere:
 - In this container bench ran as user `frappe` because bench refuses root.
 - The outbound proxy is reachable only from the host, which is why bench runs on the host rather
   than in the `frappe/bench` container (D-002).
+- Docker Hub refused anonymous pulls (HTTP 429). The images were pulled from `mirror.gcr.io` and tagged
+  with the compose names (runbook). The container also needed `dockerd` started, a `frappe` user in the
+  `docker` group, `mariadb-client`/`libmariadb-dev` installed and Node 24 from `/opt/node24`.
 
 ## Lessons learned (would cost time again)
 
@@ -85,17 +91,27 @@ Session-specific details you will not need elsewhere:
   Use `pgrep -u frappe -f "serve --port 8000"`.
 - **Shell edits after formatting:** a silent `str.replace` miss after ruff reformatting hid a broken
   test fixture. Use exact edits, or `assert old in s` before replacing.
+- **ERPNext's Work Order defaults fight QC:** component sources come from the item-group default (the QC
+  Hold warehouse), and *Use Multi-Level BOM* defaults to on (explodes the bulk). Both are handled in
+  `production/controls.py` (D-021, D-022).
+- **Re-running tests on one site:** ERPNext's test bootstrap saves FIFO each run; never set another
+  valuation method in test setup (D-024).
+- **A refused call inside a test does not roll back by itself.** Wrap it in a savepoint (see
+  `assert_refused` in `test_production.py`), as a real failed request would roll back.
+- **Standard Print Formats** reload on migrate only when `modified` changes; label page size and margins
+  must be in the format's `css` (`@page`).
+- **`frappe.get_print` with an unknown format name** silently falls back to "Standard"; a missing format
+  shows up as wrong content, not as an error.
 
-## Next task (Milestone 4: production)
+## Next task (Milestone 5: sales, dispatch and accounts)
 
-- **Bills of materials:** BULK BOM from RM, and FG BOM consuming BULK + PM.
-- **Two-stage work orders:** bulk in kg, then fill and pack in units.
-  - Consumption only from usable stock (already guarded).
-  - Output into BULK-QC-HOLD / FG-QC-HOLD (already guarded).
-  - Bulk and FG then go through QC Release.
-- **Other production pieces:** material returns, wastage reasons, process loss.
-- **Tests:** a production acceptance test that continues the Part 3 flow on the perpetual-inventory
-  company, with GL checks.
+Not started; Milestone 4 has passed its acceptance tests. Next, per the roadmap:
+- Sales Order → Pick List (FEFO, usable stock only, already guarded) → Delivery Note → Sales Invoice
+  (SAMPLE, no GST until the client gives a GSTIN) → payment; sales returns into RETURNS-QC-HOLD.
+- Customer credit limits.
+- The end-to-end scenario purchase → QC → production → release → sale → invoice → payment → trial
+  balance, on the perpetual-inventory company, with the same stock/GL reconciliation used here.
+- Production follow-ups that are client- or phase-dependent are in `OPEN_ISSUES.md` (item 7).
 
 ## Waiting on the client (blocks real data and statutory setup)
 
@@ -104,6 +120,7 @@ Session-specific details you will not need elsewhere:
 - **Dispatch:** minimum shelf life for dispatch.
 - **Purchase:** approval limits per user.
 - **Masters:** real master data.
+- **Production:** real formulas, batch sizes, process loss, wastage reasons and label content.
 - **Accountant:** chart of accounts, rounding and invoice numbering.
 - **Commercial and infrastructure:** lawyer review of the GPL position; FlowHQ day rate; staging and
   production VPS credentials.

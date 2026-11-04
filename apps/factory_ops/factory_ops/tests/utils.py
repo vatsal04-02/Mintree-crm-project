@@ -137,7 +137,10 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 		ensure_user(USER_APPROVER_HIGH, ["Purchase Manager", "Purchase User"])
 		ensure_approval_limit(USER_APPROVER_LOW, LIMIT_LOW)
 		ensure_approval_limit(USER_APPROVER_HIGH, LIMIT_HIGH)
-		configure_stock_settings()  # the factory's Stock Settings, as on the real site
+		# the factory's Stock Settings, as on the real site, except the valuation method: ERPNext's
+		# test bootstrap saves FIFO on every run and refuses to change it once transactions exist,
+		# so a different method here made every later run on the same site fail (D-023)
+		configure_stock_settings(skip=("valuation_method",))
 		frappe.db.commit()
 
 	def tearDown(self):

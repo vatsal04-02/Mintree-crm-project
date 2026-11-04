@@ -1,5 +1,100 @@
 # Phase 1 test results
 
+## Milestone 4: production (2026-11-05)
+
+Every number here comes from a run in this session's rebuilt environment. Nothing is estimated.
+
+| Layer | Where | Result |
+| --- | --- | --- |
+| Full automated suite, final code | dev bench `test.localhost` (3rd consecutive full run on the same site) | **Ran 92 tests in 134.4 s — OK** |
+| Clean environment: `setup-dev.sh` into a second, independent bench (own MariaDB, Valkey, ports 3308/13101/11101) | `~/clean-bench` | script exit 0; **two back-to-back full runs: 92 OK (135.4 s), 92 OK (133.1 s)** |
+| Clean site from nothing | `fresh.localhost` on the clean bench: new-site → ERPNext → factory_ops → `setup_dev_site` → sample users | completed; BOMs (2 % loss), Wastage type, Batch Label, Company WIP/wastage account, production sources per group, 5 wastage reasons, backflush setting all present |
+| HTTP acceptance, purchase/QC (`acceptance_http.py`) | dev site, REST, SAMPLE users | **16/16** |
+| HTTP acceptance, production (`acceptance_production_http.py`) | dev site, REST, SAMPLE users | **15/15** (last run) |
+| Browser, QC screens (`ui_check.js`) | Playwright/Chromium, QC Officer + QA Manager | **17/17** |
+| Browser, production screens (`ui_check_production.js`) | Playwright/Chromium, production user | **14/14**; screenshots in `docs/screenshots/production/` |
+| Desk | `bench serve`, `/desk` as SAMPLE users | loads; Work Order, BOM, Batch, print view checked visually |
+| Background worker | `bench worker` | enqueued job FINISHED; factory_ops nightly batch-status job FINISHED via the worker |
+| Scheduler | `bench schedule`, scheduler enabled | 16 scheduled job types executed, latest within the last 4 minutes |
+| Lint | `ruff check` / `ruff format --check` | clean |
+
+The 77 earlier tests (QC engine, guards, retest, lifecycle routes, purchase, acceptance, install)
+pass unchanged alongside the 15 new production tests.
+
+### Production tests (`tests/test_production.py`, 15)
+
+Controls (`_Test Company`):
+- `test_sample_boms`: BULK 100 kg / 2 % loss from 5 + 95 kg; FG from 30 kg bulk + 1,000 bottles with
+  the bulk BOM as sub-assembly; idempotent setup.
+- `test_work_order_warehouse_defaults`: default BOM filled on the server; WIP; output into the QC Hold
+  warehouse; components from RM/BULK/PM stores.
+- `test_defaults_for_three_component_groups`: one BOM drawing BULK, PM and RM, each from its own store.
+- `test_warehouse_mapping_is_configuration`: group setting, item override beating the group, Company WIP,
+  and the fallback to the QC release destination.
+- `test_manually_entered_restricted_warehouses_are_refused`: output into usable stock; WIP, header
+  source or component row in QC Hold or Rejected; a component edited to QC Hold after saving (refused
+  on save); a component set to Rejected directly in the database (refused on submit).
+- `test_bulk_cannot_be_exploded_into_raw_materials`: two-stage rule on save and on submit.
+- `test_bom_cannot_draw_from_hold`.
+- `test_wastage_write_off_needs_an_enabled_reason`: missing reason, disabled reason, valid reason.
+- `test_ordinary_issue_and_consumption_need_no_reason`: an ordinary issue goes through; a reason on it
+  is refused.
+- `test_wastage_type_must_be_a_material_issue`.
+- `test_scrap_from_rejected_uses_the_disposal_reason`.
+- `test_production_permissions`: QC cannot create a Work Order; production cannot edit wastage reasons.
+
+End to end (`_FO Perpetual Company`, perpetual inventory on):
+- `test_two_stage_production_with_ledger_checks`: the full flow below.
+- `test_duplicate_submission_and_rollback`: re-submitting the Work Order, transfer and Manufacture
+  through the API changes nothing. A second Manufacture is refused ("Manufactured Qty (including
+  Process Loss) (200.0) cannot be greater than planned quantity (100.0)") and rolled back. Cancelling
+  the Manufacture entry reverses stock, batch and GL, returns the Work Order's produced qty to 0, and
+  stock and GL still agree.
+- `test_released_bulk_that_was_used_cannot_be_unmade`: once released bulk is in WIP for filling,
+  cancelling its QC Release (as QA Manager) or its Manufacture entry (as Stock Manager) is refused by
+  ERPNext's negative batch stock check, and stays submitted.
+
+### End-to-end figures (test and HTTP run agree)
+
+| Stage | Stock ledger | Value / GL |
+| --- | --- | --- |
+| RM/PM received into QC Hold, released by QC | hold → stores | balanced |
+| Bulk Work Order 100 kg | none | — |
+| Transfer for manufacture (FEFO) | RM-STORES −5 / −95 kg, WIP +5 / +95 kg | net value change 0, GL balanced |
+| Manufacture | WIP −5, −95 kg; **BULK-QC-HOLD +98 kg** (process loss 2 kg) | input 2,900.00 = bulk value 2,900.00; net 0; GL balanced |
+| Filling held bulk | refused (QC guard), nothing written | — |
+| QC Release of bulk (not by the Work Order owner) | BULK-QC-HOLD −98, BULK-STORES +98 | balanced |
+| FG transfer 1,000 | BULK-STORES −30 kg, PM-STORES −1,000; WIP +30 kg, +1,000 | — |
+| **Short fill 950** | WIP −28.5 kg bulk, −950 bottles; **FG-QC-HOLD +950** | net 0; GL balanced |
+| Close Work Order + return components | WIP −1.5 kg, −50 → BULK-STORES +1.5 kg, PM-STORES +50 | — |
+| Wastage, 10 bottles, "Damaged in handling" | PM-STORES −10 | stock −50.00; **Production Wastage Dr 50.00**; balanced |
+| Batch label | — | HTML contains batch, item, Work Order, "QC: HOLD"; PDF 1 page 100 × 60 mm |
+| QC Release of FG | FG-QC-HOLD −950, FG-STORES +950 | balanced; label now "QC: RELEASED" |
+| Company-wide | — | Σ stock value difference = Σ stock-account GL (test); HTTP: **SLE 54,800.00 = GL 54,800.00 over 143 ledger rows**, and ERPNext's *Stock and Account Value Comparison* lists no mismatching voucher |
+
+### Failures found and fixed in Milestone 4
+
+| Found by | Problem | Fix | Regression check |
+| --- | --- | --- | --- |
+| First full run (4 errors) | ERPNext defaults component sources to the item-group warehouse (QC Hold), so every Work Order was refused | configurable production source; redirect only ERPNext-filled rows (D-021) | `test_work_order_warehouse_defaults`, `test_warehouse_mapping_is_configuration`, `test_manually_entered_restricted_warehouses_are_refused` |
+| Same run | own test bug: Reject without a quantity | test fixed | `test_scrap_from_rejected_uses_the_disposal_reason` |
+| Module re-run | every second run on the same site failed at discovery (valuation method) | D-024 | three consecutive full runs on the dev bench, two on the clean bench |
+| FG tests | multi-level BOM exploded the bulk into raw materials and skipped bulk QC | two-stage rule (D-022) | `test_bulk_cannot_be_exploded_into_raw_materials` |
+| Review of the brief | wastage rule caught every Material Issue | Wastage stock entry type (D-023) | `test_ordinary_issue_and_consumption_need_no_reason` |
+| Duplicate test | a refused second Manufacture left partial rows in the test transaction | the test now rolls back to a savepoint, as a failed request does | `test_duplicate_submission_and_rollback` |
+| Rollback test | Manufacturing User cannot cancel Stock Entries (ERPNext permission) | cancellation done by Stock Manager / QA Manager | `test_released_bulk_that_was_used_cannot_be_unmade` |
+| Short-fill test | ERPNext returns components only from a Completed or Closed order | close the Work Order first (documented) | E2E step 8 |
+| HTTP acceptance | Work Order BOM filled only in the browser; REST got "BOM No is mandatory" | server-side default BOM | HTTP check 2, `test_work_order_warehouse_defaults` |
+| HTTP acceptance (4th run) | own script compared raw ledger rows; FEFO split consumption over two batches | compare totals per item and warehouse | HTTP checks 3, 9, 10 |
+| Label render | two pages, 15 mm margins; later text wrapping | `@page` in the Print Format css; layout; Chrome generator named explicitly (D-025) | HTTP check 13, screenshot `17-batch-label-pdf.png` |
+| Clean-bench 2nd run (1 failure) | site migrated before the label existed, then ran newer test code | migrate then run; two clean runs both OK | — |
+
+Not yet run: **CI on GitHub Actions for this commit** (see the commit's Actions run).
+
+---
+
+# Earlier results (Milestones 1–3)
+
 Updated 2026-11-05 (validation round + Milestone 3). Every result below was produced by running it;
 nothing is estimated.
 

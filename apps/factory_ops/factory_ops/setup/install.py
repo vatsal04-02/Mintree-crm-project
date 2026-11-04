@@ -29,6 +29,7 @@ def apply_setup():
 	create_warehouse_types()
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True, update=True)
 	grant_qc_permissions()
+	create_stock_entry_types()
 	ensure_single_defaults("Factory Ops Settings")
 	frappe.clear_cache()
 
@@ -44,6 +45,19 @@ def ensure_single_defaults(doctype: str) -> None:
 			and df.fieldtype not in ("Section Break", "Column Break")
 		):
 			frappe.db.set_single_value(doctype, df.fieldname, df.default)
+
+
+def create_stock_entry_types():
+	"""The wastage write-off type (production/controls.py). Created once; editable in Desk."""
+	if not frappe.db.exists("Stock Entry Type", "Wastage"):
+		frappe.get_doc(
+			{
+				"doctype": "Stock Entry Type",
+				"name": "Wastage",
+				"purpose": "Material Issue",
+				"fo_is_wastage": 1,
+			}
+		).insert(ignore_permissions=True)
 
 
 def create_roles():

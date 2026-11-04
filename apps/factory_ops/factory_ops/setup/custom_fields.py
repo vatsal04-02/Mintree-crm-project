@@ -148,7 +148,52 @@ CUSTOM_FIELDS = {
 			"options": "Wastage Reason",
 			"insert_after": "t_warehouse",
 			"depends_on": "eval:parent.purpose=='Material Issue'",
-			"description": "Required for every Material Issue except scrap from the Rejected warehouse.",
+			"description": "Required on every row of a wastage write-off (Stock Entry Type flagged as wastage).",
+		},
+	],
+	"Stock Entry Type": [
+		{
+			"fieldname": "fo_is_wastage",
+			"label": "Wastage write-off",
+			"fieldtype": "Check",
+			"default": "0",
+			"insert_after": "purpose",
+			"description": "Entries of this type write stock off as wastage: every row needs a Wastage Reason and posts to the company's Wastage Expense Account. Purpose must be Material Issue.",
+		},
+	],
+	"Item Default": [
+		{
+			"fieldname": "fo_production_warehouse",
+			"label": "Production Source Warehouse",
+			"fieldtype": "Link",
+			"options": "Warehouse",
+			"insert_after": "default_warehouse",
+			"description": "Usable warehouse Work Orders draw this item (or this group's items) from. Blank: the QC release destination of the default warehouse.",
+		},
+	],
+	"Company": [
+		{
+			"fieldname": "fo_production_section",
+			"label": "Factory production",
+			"fieldtype": "Section Break",
+			"insert_after": "default_warehouse",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "fo_wip_warehouse",
+			"label": "Default WIP Warehouse",
+			"fieldtype": "Link",
+			"options": "Warehouse",
+			"insert_after": "fo_production_section",
+			"description": "Work-in-progress warehouse used by new Work Orders.",
+		},
+		{
+			"fieldname": "fo_wastage_account",
+			"label": "Wastage Expense Account",
+			"fieldtype": "Link",
+			"options": "Account",
+			"insert_after": "fo_wip_warehouse",
+			"description": "Expense account that wastage write-offs post to.",
 		},
 	],
 }
