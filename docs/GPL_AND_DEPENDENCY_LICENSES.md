@@ -17,7 +17,7 @@ before go-live and before FlowHQ offers `factory_ops` to a second client.
 | frappe_docker | `main` @ fbf76ed | **MIT** | Container images and compose files | Frappe Technologies |
 | Frappe UI (if adopted) | `main` @ cb97437 | **MIT** | Vue 3 component library | Frappe Technologies |
 | MariaDB Server | 11.8 | **GPL-2.0** | Database | MariaDB Foundation/plc |
-| Redis | 8.6 (frappe_docker default image) | Redis 8 is offered under a choice of RSALv2, SSPLv1 or **AGPLv3** (to verify) | Cache and job queue | Redis Ltd |
+| Redis | **not used** (frappe_docker's default image is redis:8.6) | Redis ≥ 7.4 is no longer BSD-licensed | Replaced by Valkey | Redis Ltd |
 | **Valkey (chosen, D-004)** | 8.1 | BSD-3-Clause | Cache and job queue (replaces Redis) | Linux Foundation |
 | Python 3.14, Node 24 | — | PSF, MIT | Runtimes | — |
 | Caddy 2 / Traefik 3 | — | Apache-2.0 / MIT | HTTPS reverse proxy | — |
@@ -99,7 +99,7 @@ for people over a network is not conveying under GPL-3.0. That rule is different
 | Major-version upgrades | ERPNext/Frappe have one major version per year (v15 → v16 → v17; `develop` is already 17.0.0-dev). Third-party apps lag behind | Stay on v16 until v17 has had about 3 months of minor releases **and** India Compliance and ecommerce_integrations have `version-17` branches. Upgrade staging first |
 | App constraints | ERPNext v16.53.0 and HRMS require `frappe >=16.50.0,<17`; India Compliance and ecommerce_integrations require `frappe >=16.0.0,<17` | Pin all four by tag or commit in `apps.json`; upgrade together; run tests |
 | Third-party app maintenance | India Compliance (Resilient Tech) and ecommerce_integrations are maintained separately; Amazon connector uses deprecated SigV4 auth | Track their release notes; contract tests for connectors |
-| Runtime versions | v16 images: Python 3.14, Node 24, MariaDB 11.8, Redis 8.6 (frappe_docker) | Use frappe_docker's images rather than a hand-built bench |
+| Runtime versions | v16: Python 3.14, Node 24, MariaDB 11.8 (frappe_docker), Valkey 8.1 instead of frappe_docker's Redis 8.6 | Use frappe_docker's application images; override the cache/queue service with Valkey |
 | Postgres | Not used (MariaDB decision) | — |
 | Redis licence change | Redis ≥ 7.4 is no longer BSD | **Resolved:** Valkey 8.1 (BSD-3-Clause) is used instead; verified with Frappe v16 in development (DECISIONS D-004) |
 | India Compliance API service | Paid credits; terms can change | Budget line for the client; e-invoice only needed above the turnover threshold (accountant to confirm) |

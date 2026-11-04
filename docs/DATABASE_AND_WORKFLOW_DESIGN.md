@@ -232,6 +232,40 @@ UI, and asserts it fails.
   RELEASED ── expiry date passes ──▶ EXPIRED (blocked by standard check; Material Issue to scrap)
 ```
 
+### 3.5 Send for Re-test (QC Retest), implemented 2026-11-05
+
+Rejected stock leaves the Rejected warehouse only by scrap (Material Issue with a disposal reason), by
+return to the supplier, or by a **QC Retest** submitted by a QA Manager. The QC Retest moves the
+quantity back to the QC Hold warehouse it was rejected from, in one transaction, under a process-local
+flag (same pattern as QC Release). The material is then ordinary held stock: a new QC Release with a
+new accepted QI is required (an old QI is bound to its old transfer and ERPNext refuses to reuse it).
+
+### 3.6 Goods receipt (Purchase Receipt), implemented 2026-11-05
+
+```
+PO (approved by limit) ──make_purchase_receipt──▶ GRN draft
+  before_validate: QC item rows → warehouse = item group's QC Hold default; rejected qty → REJECTED
+  validate:        mfg date not in future; expiry after mfg
+  before_submit:   supplier batch no, mfg date, expiry (if tracked), COA (if group requires) mandatory
+                   → Batch created from them (supplier, dates, COA, reference = GRN)
+  on_submit:       ERPNext posts stock ledger (QC Hold, REJECTED) and GL; batch QC status = Hold
+```
+
+Stock-updating Purchase Invoices are refused for QC items; the invoice is made from the GRN instead.
+
+### 3.7 Purchase approval, implemented 2026-11-05
+
+`Purchase Approval Limit` (user, limit in company currency, optional company, enabled). Submitting a
+Purchase Order is the approval: the submitter must not be its creator and must hold a limit ≥ the PO's
+base grand total. Enforced in `before_submit`, so Desk, REST and imports are covered (tested via
+`frappe.client.submit`).
+
+### 3.8 Stock Settings set by factory_ops
+
+`enable_serial_and_batch_no_for_item = 1`, `allow_negative_stock = 0`, `allow_negative_stock_for_batch = 0`,
+`pick_serial_and_batch_based_on = Expiry` (FEFO), `valuation_method = Moving Average`,
+`enable_stock_reservation = 1`, both QI actions = Stop.
+
 ## 4. The brief's non-negotiable rules (§6) on ERPNext v16
 
 | # | Rule | How it is met | Status |

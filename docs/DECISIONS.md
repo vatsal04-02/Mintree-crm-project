@@ -81,3 +81,49 @@ reject it: rejecting your own receipt reduces risk, it does not create it.
 **D-009 A guard flag, not a field, unlocks the release transfer.** The QC Release sets a process-local
 `frappe.flags` value while submitting its own Stock Entry. A client cannot set that through the API;
 setting `fo_qc_release` on a Stock Entry does not unlock anything (test 14).
+
+## 2026-11-05 — validation round and Milestone 3 (purchase and inventory)
+
+**D-010 Send for Re-test is its own document (QC Retest).** QA Manager only; the only route from a
+Rejected warehouse back to QC Hold (the earlier generic "QA Manager may transfer" path in the guard
+was removed). The re-tested material is held stock again: it needs a new QC Release with a new,
+accepted QI. ERPNext itself refuses reuse of the old QI (it is bound to the old transfer).
+
+**D-011 Pick List.** ERPNext computes suggested locations in `before_save`, after `validate`, and
+without a parent warehouse it suggests QC Hold stock. factory_ops defaults the parent warehouse to the
+company's USABLE group and checks locations again in `before_save` and `before_submit`.
+
+**D-012 QC items are received only by Purchase Receipt.** A stock-updating Purchase Invoice would
+bypass supplier batch, dates and COA capture, so it is refused for QC items (non-QC items unaffected).
+
+**D-013 Supplier batches.** On GRN submit factory_ops creates the Batch from the receipt row
+(supplier batch no, manufacturing and expiry dates, COA, supplier) before ERPNext builds the batch
+bundle, so the batch carries the supplier's dates from the start; ERPNext's shelf-life-based expiry
+is not used for bought material. Supplier batch no and mfg date are mandatory for QC items with batch
+tracking; expiry for items with expiry tracking; COA for item groups flagged "COA required" (RM).
+
+**D-014 Purchase approval = submitting the PO.** Enforced in `before_submit`: the submitter must not be
+the creator and must have a Purchase Approval Limit ≥ the PO's base grand total. No Frappe Workflow is
+needed for this rule. A Factory Ops Settings switch can turn enforcement off (audited); it is used only
+by one ERPNext test helper that submits its own PO.
+
+**D-015 Defaults of new fields on existing Singles are back-filled on migrate.** A field added to a
+Single DocType never gets its JSON default on an existing site (it reads as 0). This silently turned
+approval enforcement off on the upgraded test site; `apply_setup` now writes defaults for unset fields.
+
+**D-016 Stock Settings are set by factory_ops** (`configure_stock_settings`): batch tracking on (a fresh
+v16 site has it off and cannot receive batch items), no negative stock, FEFO (Expiry), moving average,
+stock reservation on, QI Stop actions. Tests use the same function.
+
+**D-017 Extra read rights for QC roles:** Company (report filters resolve it) and Stock Ledger Entry
+(read/report, for the Stock by QC Status and Stock Ledger reports). Both gaps were found in the
+browser and HTTP checks, not by unit tests.
+
+**D-018 GL reconciliation is tested on a perpetual-inventory company.** ERPNext's `_Test Company` has
+perpetual inventory off (receipts post no GL). The acceptance test uses its own company created the
+normal ERPNext way with perpetual inventory on, like the SAMPLE company.
+
+**D-019 Development data and users.** `setup_dev_site` runs ERPNext's own setup wizard (SAMPLE company,
+April–March FY) then the same master-data code the tests use. Sample users get random passwords
+written to `sites/<site>/private/sample_users.json` (mode 600, outside the repository); creating them
+refuses to run unless developer mode is on.

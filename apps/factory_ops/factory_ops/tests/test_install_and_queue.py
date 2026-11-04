@@ -50,3 +50,20 @@ class TestInstall(FactoryOpsTestCase):
 		self.qc_release(batch, "Release")
 		_, rows = execute({"company": COMPANY})
 		self.assertFalse([r for r in rows if r["batch_no"] == batch])
+
+
+class TestQCScreenPermissions(FactoryOpsTestCase):
+	"""Gaps found by the browser and HTTP checks: QC users must be able to open their screens."""
+
+	def test_qc_roles_can_run_their_reports(self):
+		from frappe.desk.query_report import run
+
+		from factory_ops.tests.utils import USER_QA, USER_QC
+
+		for user in (USER_QC, USER_QA):
+			with self.set_user(user):
+				self.assertTrue(frappe.has_permission("Company", "read"))  # report Company filter
+				self.assertTrue(frappe.has_permission("Stock Ledger Entry", "report"))
+				for report in ("QC Queue", "Stock by QC Status"):
+					result = run(report, filters={"company": COMPANY})
+					self.assertIn("result", result, f"{user} / {report}")

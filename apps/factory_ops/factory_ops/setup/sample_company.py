@@ -30,6 +30,7 @@ ITEM_GROUPS = {
 
 SUPPLIER_GROUP = "SAMPLE Suppliers"
 SUPPLIERS = ("SAMPLE Supplier - Actives", "SAMPLE Supplier - Packaging")
+CUSTOMERS = ("SAMPLE Customer - Distributor",)
 
 # code: (name, group, stock uom, has_expiry_date, shelf life days)
 ITEMS = {
@@ -76,11 +77,29 @@ def setup_dev_site(company: str = SAMPLE_COMPANY, abbr: str = SAMPLE_ABBR) -> st
 			frappe.throw(f"Setup wizard did not complete: {result}")
 	ensure_next_financial_year()
 	setup_company_masters(company)
-	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
-	frappe.db.set_single_value("Stock Settings", "pick_serial_and_batch_based_on", "Expiry")
-	frappe.db.set_single_value("Stock Settings", "valuation_method", "Moving Average")
+	configure_stock_settings()
 	frappe.db.commit()
 	return company
+
+
+STOCK_SETTINGS = {
+	# A fresh v16 site has batch tracking switched off; batch-tracked items cannot be received
+	# until it is on (ERPNext's test bootstrap turns it on, so only a real site shows this).
+	"enable_serial_and_batch_no_for_item": 1,
+	"allow_negative_stock": 0,
+	"allow_negative_stock_for_batch": 0,
+	"pick_serial_and_batch_based_on": "Expiry",  # FEFO
+	"valuation_method": "Moving Average",
+	"enable_stock_reservation": 1,
+	"action_if_quality_inspection_is_not_submitted": "Stop",
+	"action_if_quality_inspection_is_rejected": "Stop",
+}
+
+
+def configure_stock_settings():
+	"""Stock Settings for the factory (also listed in docs/DATABASE_AND_WORKFLOW_DESIGN.md)."""
+	for field, value in STOCK_SETTINGS.items():
+		frappe.db.set_single_value("Stock Settings", field, value)
 
 
 def ensure_next_financial_year():
@@ -105,8 +124,25 @@ def setup_company_masters(company: str) -> dict:
 	ensure_uoms()
 	ensure_item_groups(company)
 	ensure_suppliers()
+	ensure_customers()
 	ensure_items()
 	return warehouses
+
+
+def ensure_customers():
+	for name in CUSTOMERS:
+		if not frappe.db.exists("Customer", name):
+			frappe.get_doc(
+				{
+					"doctype": "Customer",
+					"customer_name": name,
+					"customer_type": "Company",
+					"territory": "India" if frappe.db.exists("Territory", "India") else "All Territories",
+					"customer_group": "Commercial"
+					if frappe.db.exists("Customer Group", "Commercial")
+					else "All Customer Groups",
+				}
+			).insert(ignore_permissions=True)
 
 
 def ensure_uoms():

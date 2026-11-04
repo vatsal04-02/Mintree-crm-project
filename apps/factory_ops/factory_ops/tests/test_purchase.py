@@ -65,7 +65,7 @@ class PurchaseTestCase(FactoryOpsTestCase):
 			po = frappe.get_doc(
 				{
 					"doctype": "Purchase Order",
-					"company": COMPANY,
+					"company": self.company,
 					"supplier": SUPPLIER,
 					"schedule_date": add_days(nowdate(), 7),
 					"items": [
@@ -97,7 +97,7 @@ class TestPurchaseChain(PurchaseTestCase):
 				{
 					"doctype": "Material Request",
 					"material_request_type": "Purchase",
-					"company": COMPANY,
+					"company": self.company,
 					"schedule_date": add_days(nowdate(), 10),
 					"items": [{"item_code": RM, "qty": 200, "schedule_date": add_days(nowdate(), 10)}],
 				}
@@ -261,14 +261,19 @@ class TestMastersAndReports(PurchaseTestCase):
 	def test_stock_reports(self):
 		po = self.make_po()
 		pr = self.make_pr(po, **supplier_details())
-		_, rows = qc_stock({"company": COMPANY, "item_code": RM})
+		_, rows = qc_stock({"company": self.company, "item_code": RM})
 		mine = [r for r in rows if r.batch_no == pr.items[0].batch_no]
 		self.assertEqual(len(mine), 1)
 		self.assertEqual((mine[0].warehouse_type, mine[0].qty), ("QC Hold", 100))
 		from erpnext.stock.report.stock_balance.stock_balance import execute as stock_balance
 		from erpnext.stock.report.stock_ledger.stock_ledger import execute as stock_ledger
 
-		f = {"company": COMPANY, "from_date": add_days(nowdate(), -1), "to_date": nowdate(), "item_code": RM}
+		f = {
+			"company": self.company,
+			"from_date": add_days(nowdate(), -1),
+			"to_date": nowdate(),
+			"item_code": RM,
+		}
 		ledger = stock_ledger(frappe._dict({**f, "item_code": [RM]}))[1]  # v16: multi-select filter
 		self.assertTrue(any(r.get("voucher_no") == pr.name for r in ledger if isinstance(r, dict)))
 		balance = stock_balance(frappe._dict({**f, "item_code": [RM], "warehouse": self.wh["RM-QC-HOLD"]}))[1]

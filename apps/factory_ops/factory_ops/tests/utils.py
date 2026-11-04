@@ -11,7 +11,7 @@ from erpnext.tests.utils import ERPNextTestSuite
 from frappe.utils import add_days, nowdate
 
 from factory_ops.constants import ROLE_QA_MANAGER, ROLE_QC_OFFICER
-from factory_ops.setup.sample_company import setup_company_masters
+from factory_ops.setup.sample_company import configure_stock_settings, setup_company_masters
 
 COMPANY = "_Test Company"
 
@@ -94,12 +94,35 @@ def ensure_plain_warehouse(name: str) -> str:
 	return full
 
 
+def ensure_perpetual_company(name: str, abbr: str) -> str:
+	"""A company created the normal ERPNext way (standard chart, perpetual inventory on), as the
+	SAMPLE company is. ERPNext's own _Test Company has perpetual inventory off."""
+	if not frappe.db.exists("Company", name):
+		frappe.get_doc(
+			{
+				"doctype": "Company",
+				"company_name": name,
+				"abbr": abbr,
+				"default_currency": "INR",
+				"country": "India",
+				"create_chart_of_accounts_based_on": "Standard Template",
+				"chart_of_accounts": "Standard",
+				"enable_perpetual_inventory": 1,
+			}
+		).insert(ignore_permissions=True)
+	return name
+
+
 class FactoryOpsTestCase(ERPNextTestSuite):
+	company = COMPANY
+
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
 		frappe.set_user("Administrator")
-		cls.wh = setup_company_masters(COMPANY)  # same code as the SAMPLE dev site
+		if cls.company != COMPANY:
+			ensure_perpetual_company(cls.company, cls.company_abbr)
+		cls.wh = setup_company_masters(cls.company)  # same code as the SAMPLE dev site
 		ensure_batch_item(QC_ITEM)
 		ensure_batch_item(FG_ITEM, uom="Nos")
 		ensure_batch_item(PLAIN_ITEM, qc_required=0)
@@ -114,8 +137,7 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 		ensure_user(USER_APPROVER_HIGH, ["Purchase Manager", "Purchase User"])
 		ensure_approval_limit(USER_APPROVER_LOW, LIMIT_LOW)
 		ensure_approval_limit(USER_APPROVER_HIGH, LIMIT_HIGH)
-		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
-		frappe.db.set_single_value("Stock Settings", "pick_serial_and_batch_based_on", "Expiry")
+		configure_stock_settings()  # the factory's Stock Settings, as on the real site
 		frappe.db.commit()
 
 	def tearDown(self):
@@ -154,7 +176,7 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 					"doctype": "Stock Entry",
 					"purpose": "Material Receipt",
 					"stock_entry_type": "Material Receipt",
-					"company": COMPANY,
+					"company": self.company,
 					"items": [
 						{
 							"item_code": item_code,
@@ -184,7 +206,7 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 				"doctype": "Stock Entry",
 				"purpose": purpose,
 				"stock_entry_type": purpose,
-				"company": COMPANY,
+				"company": self.company,
 				**extra,
 				"items": [
 					{
@@ -222,7 +244,7 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 			doc = frappe.get_doc(
 				{
 					"doctype": "QC Release",
-					"company": COMPANY,
+					"company": self.company,
 					"item_code": item_code,
 					"batch_no": batch_no,
 					"source_warehouse": source or self.wh["RM-QC-HOLD"],

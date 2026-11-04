@@ -1,6 +1,6 @@
 # System architecture: Mintree Factory OS on ERPNext
 
-**Status:** revised architecture, 4 Nov 2026. Implementation started; see `IMPLEMENTATION_PROGRESS.md`. Supersedes the stack in brief §3, the brief's
+**Status:** revised architecture, 4 Nov 2026; implementation through Milestone 3 (purchase and inventory) on 5 Nov 2026, see `IMPLEMENTATION_PROGRESS.md`. Supersedes the stack in brief §3, the brief's
 §5 repo layout, and `docs/erpnext-assessment.md`.
 
 **Approved decisions:**
@@ -94,6 +94,18 @@ Staging VPS: same image, one size smaller; also runs Uptime Kuma and restore dri
 | End of 1 | Spike: QC queue page in **Frappe UI (Vue 3, MIT)** tested on a shop-floor tablet | Decision recorded in `docs/decisions.md` |
 | 4+ | Shop-floor pages in Frappe UI if the spike wins: GRN scan, QC queue, material issue, pick/pack, breakdown | Served by Frappe on the same domain |
 | — | `apps/web` (React) | **Frozen as design reference only** (tokens, density, status chips, anti-slop rules). Not deployed |
+
+## 6a. factory_ops modules as built
+
+| Module | Contents |
+| --- | --- |
+| Factory Ops | Factory Ops Settings; setup (roles, warehouse types, custom fields, permissions, SAMPLE company, sample users) |
+| Quality | QC Release, QC Deviation, QC Retest, QC Queue report, derived batch QC status |
+| Inventory | server-side guards on every stock route, goods-receipt logic, item-group controls, Stock by QC Status report |
+| Purchase | Purchase Approval Limit and PO approval rule |
+
+Verification layers: Frappe test suite (local + GitHub Actions CI), clean-environment run of the dev
+setup script, HTTP acceptance script against the running dev site, Playwright browser check.
 
 ## 7. Repository layout (this repo)
 

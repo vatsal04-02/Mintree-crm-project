@@ -9,10 +9,18 @@ packages `mariadb-client libmariadb-dev pkg-config build-essential`.
 ./deploy/dev/setup-dev.sh
 ```
 
-The script was written from the steps run by hand to build the current environment. The script itself has not yet been run end to end on a clean machine (OPEN_ISSUES). What it does:
+Verified 2026-11-05 on a clean OS user with an empty home directory, from a fresh clone; its test
+site then passed the full suite. Ports and compose project can be overridden to run a second,
+independent environment:
 
-1. `docker compose -f deploy/dev/compose.yaml up -d`: MariaDB 11.8 on `127.0.0.1:3307`, Valkey cache
-   on `:13100`, Valkey queue on `:11100`. Development passwords only.
+```bash
+DEV_PROJECT=factory-os-clean DEV_DB_PORT=3308 DEV_CACHE_PORT=13101 DEV_QUEUE_PORT=11101 ./deploy/dev/setup-dev.sh
+```
+
+What it does:
+
+1. `docker compose -f deploy/dev/compose.yaml up -d --wait`: MariaDB 11.8 on `127.0.0.1:3307` (waits for
+   its healthcheck), **Valkey 8.1** cache on `:13100` and queue on `:11100`. Development passwords only.
 2. Installs CPython 3.14 and `frappe-bench==5.31.1` with uv.
 3. `bench init --frappe-branch v16.55.2 --python python3.14 --skip-redis-config-generation`.
 4. Points the bench at the Docker services (`bench set-config -g db_host/db_port/redis_*`).
@@ -30,10 +38,32 @@ Daily commands (from the bench directory):
 | Serve Desk | `bench --site factory.localhost serve --port 8000`, then open `/desk` |
 | Lint | `uvx ruff@0.14.3 check apps/factory_ops/factory_ops` |
 
+SAMPLE data and users on the development site (after the script):
+
+```bash
+bench --site factory.localhost execute factory_ops.setup.sample_company.setup_dev_site
+bench --site factory.localhost execute factory_ops.setup.sample_users.create_sample_users
+```
+
+The second command writes random passwords to `sites/factory.localhost/private/sample_users.json`
+(mode 600, never committed). With the site served on port 8000:
+
+```bash
+python deploy/dev/acceptance_http.py http://127.0.0.1:8000 factory.localhost sites/factory.localhost/private/sample_users.json
+```
+
+```bash
+node deploy/dev/ui_check.js sites/factory.localhost/private/sample_users.json /tmp/shots <reject QC Release> <draft QC Release> <held batch>
+```
+
 Known setup pitfalls found while building:
 - bench refuses to run as root.
 - `mysqlclient` needs `libmariadb-dev` and `pkg-config`, otherwise `bench init` fails part-way. Delete
   the half-built bench and re-run.
+- bench writes `sites/apps.txt` without a trailing newline; append with a newline first (fixed in the
+  script and CI).
+- A fresh v16 site has batch tracking off; `setup_dev_site` turns it on (DECISIONS D-016).
+- The v16 login page is rendered by JavaScript; browser automation logs in through `/api/method/login`.
 
 ## 2. Staging — not yet provisioned
 

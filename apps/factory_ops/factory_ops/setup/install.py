@@ -79,6 +79,13 @@ QC_DOCPERMS = (
 	("Warehouse", ROLE_QA_MANAGER, ("read",)),
 	("Stock Entry", ROLE_QC_OFFICER, ("read",)),
 	("Stock Entry", ROLE_QA_MANAGER, ("read",)),
+	# report filters and link fields resolve the Company; without read the QC Queue opens
+	# with a permission error (found in the browser check)
+	("Company", ROLE_QC_OFFICER, ("read",)),
+	("Company", ROLE_QA_MANAGER, ("read",)),
+	# read-only ledger visibility for QC (Stock by QC Status, Stock Ledger reports)
+	("Stock Ledger Entry", ROLE_QC_OFFICER, ("read", "report")),
+	("Stock Ledger Entry", ROLE_QA_MANAGER, ("read", "report")),
 	# ERPNext v16 lets only Item Manager create Batches, but a batch is auto-created when
 	# stock is received or produced. Receivers and producers need create (not write).
 	("Batch", "Stock User", ("read", "create")),

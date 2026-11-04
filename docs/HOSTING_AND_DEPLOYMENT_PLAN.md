@@ -65,7 +65,7 @@ Internet ──443──▶ Caddy (or Traefik from frappe_docker overrides)  ─
                                    queue-short / queue-long workers
                                    scheduler
                MariaDB 11.8 (not exposed to the internet)
-               Redis cache + Redis queue (not exposed)
+               Valkey cache + Valkey queue (BSD, Redis-compatible; not exposed)
                volumes: sites/, db data, logs
 ```
 
@@ -74,7 +74,7 @@ Internet ──443──▶ Caddy (or Traefik from frappe_docker overrides)  ─
   `factory_ops` tag. One image tag per release (`factory-os:2026.11.1`), pushed to a private
   registry. That is the client's GitHub Container Registry or the cloud provider's registry.
 - **Compose.** frappe_docker `compose.yaml` + `overrides/compose.mariadb.yaml` +
-  `compose.redis.yaml` + an HTTPS override. Our overrides and `.env` live in `deploy/` in this
+  a Valkey 8.1 override in place of frappe_docker's `compose.redis.yaml` (DECISIONS D-004) + an HTTPS override. Our overrides and `.env` live in `deploy/` in this
   repo.
 - **Release path.**
   1. CI builds the image and runs tests.
@@ -116,7 +116,7 @@ Internet ──443──▶ Caddy (or Traefik from frappe_docker overrides)  ─
 - [ ] Ubuntu LTS, unattended security upgrades, automatic reboot window on Sunday 03:00 IST
 - [ ] SSH: keys only, no root login, non-standard user per engineer, fail2ban
 - [ ] Firewall (provider firewall + ufw): inbound 22 (FlowHQ office/VPN IPs where possible), 80, 443 only
-- [ ] MariaDB and Redis bound to the Docker network only; strong unique passwords
+- [ ] MariaDB and Valkey bound to the Docker network only; strong unique passwords
 - [ ] HTTPS everywhere, HSTS; HTTP → HTTPS redirect
 - [ ] Frappe: 2FA for System Manager, Accounts, QC Manager and approver roles; password policy;
       login attempt lockout; session expiry 8 h on shop-floor devices
