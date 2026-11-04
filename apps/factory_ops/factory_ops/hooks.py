@@ -22,8 +22,15 @@ before_uninstall = "factory_ops.setup.install.before_uninstall"
 # docs/DATABASE_AND_WORKFLOW_DESIGN.md section 3.3.
 # ---------------------------------------------------------------------------
 _guard = "factory_ops.inventory.guards"
+_recv = "factory_ops.inventory.receiving"
 
 doc_events = {
+	"Item": {
+		"validate": "factory_ops.inventory.items.apply_item_group_controls",
+	},
+	"Purchase Order": {
+		"before_submit": "factory_ops.purchase.approval.validate_purchase_order_approval",
+	},
 	"Stock Entry": {
 		"validate": f"{_guard}.validate_stock_entry",
 		"before_submit": f"{_guard}.validate_stock_entry",
@@ -32,8 +39,13 @@ doc_events = {
 		"on_cancel": f"{_guard}.on_inward_cancel",
 	},
 	"Purchase Receipt": {
-		"validate": f"{_guard}.validate_purchase_receipt",
-		"before_submit": f"{_guard}.validate_purchase_receipt",
+		"before_validate": f"{_recv}.set_receipt_defaults",
+		"validate": [f"{_guard}.validate_purchase_receipt", f"{_recv}.validate_receipt_data"],
+		"before_submit": [
+			f"{_guard}.validate_purchase_receipt",
+			f"{_recv}.validate_receipt_data",
+			f"{_recv}.create_supplier_batches",
+		],
 		"on_submit": f"{_guard}.on_inward_submit",
 		"on_cancel": f"{_guard}.on_inward_cancel",
 	},

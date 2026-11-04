@@ -29,7 +29,21 @@ def apply_setup():
 	create_warehouse_types()
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True, update=True)
 	grant_qc_permissions()
+	ensure_single_defaults("Factory Ops Settings")
 	frappe.clear_cache()
+
+
+def ensure_single_defaults(doctype: str) -> None:
+	"""A field added to an existing Single gets no row in tabSingles, so its JSON default never
+	applies and a Check reads as 0. Write the default for every field that has never been set."""
+	present = set(frappe.db.sql_list("select field from `tabSingles` where doctype=%s", doctype))
+	for df in frappe.get_meta(doctype).fields:
+		if (
+			df.default is not None
+			and df.fieldname not in present
+			and df.fieldtype not in ("Section Break", "Column Break")
+		):
+			frappe.db.set_single_value(doctype, df.fieldname, df.default)
 
 
 def create_roles():

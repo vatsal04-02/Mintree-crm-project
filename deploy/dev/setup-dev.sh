@@ -25,7 +25,10 @@ done
 
 docker compose -f "$REPO/deploy/dev/compose.yaml" up -d --wait
 uv python install 3.14
-uv tool install --python 3.14 frappe-bench==5.31.1
+# idempotent: (re)install only when the pinned bench version is not already present
+if [ "$(bench --version 2>/dev/null)" != "5.31.1" ]; then
+  uv tool install --force --python 3.14 frappe-bench==5.31.1
+fi
 
 if [ ! -d "$BENCH_DIR" ]; then
   bench init --frappe-branch "$FRAPPE_VERSION" --python python3.14 \

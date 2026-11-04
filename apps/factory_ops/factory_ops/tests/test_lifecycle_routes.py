@@ -143,15 +143,15 @@ class TestLifecycleRoutes(FactoryOpsTestCase):
 		)
 
 	def test_purchase_invoice_with_stock_update(self):
+		"""QC items must be received with a Purchase Receipt (supplier batch, dates, COA), so a
+		stock-updating invoice is refused for them in any warehouse. Non-QC items are unaffected."""
 		self.assertRaises(QCGuardError, self._pi(self.stores).insert)
-		pi = self._pi(self.hold).insert()
+		self.assertRaises(QCGuardError, self._pi(self.hold).insert)
+		pi = self._pi(self.stores)
+		pi.items[0].item_code = "_Test Item"
+		pi.insert()
 		pi.submit()
 		self.assertEqual(pi.docstatus, 1)
-		pi.reload()
-		batch = frappe.db.get_value(
-			"Serial and Batch Entry", {"parent": pi.items[0].serial_and_batch_bundle}, "batch_no"
-		)
-		self.assertEqual(batch_qty_in_warehouse(batch, self.hold), 10)
 		self.assertTrue(frappe.db.count("GL Entry", {"voucher_no": pi.name}))
 
 	# --------------------------------------------------------------- production
@@ -258,11 +258,14 @@ class TestLifecycleRoutes(FactoryOpsTestCase):
 		make_raw_materials()
 		make_service_items()
 		make_bom_for_subcontracted_items()
-		sco = get_subcontracting_order(do_not_save=True)
-		sco.set_reserve_warehouse = self.hold
-		for row in sco.get("supplied_items") or []:
-			row.reserve_warehouse = self.hold
-		self.assertRaises(QCGuardError, sco.insert)
+		# ERPNext's helper submits the subcontracting PO as its creator; approval limits are not
+		# what this test is about, so they are switched off for it (the change is audited).
+		with self.change_settings("Factory Ops Settings", enforce_purchase_approval=0):
+			sco = get_subcontracting_order(do_not_save=True)
+			sco.set_reserve_warehouse = self.hold
+			for row in sco.get("supplied_items") or []:
+				row.reserve_warehouse = self.hold
+			self.assertRaises(QCGuardError, sco.insert)
 
 	# ---------------------------------------------------------------- rollback
 	def test_refused_movement_writes_nothing(self):

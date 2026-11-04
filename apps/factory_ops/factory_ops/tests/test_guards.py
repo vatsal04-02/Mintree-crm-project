@@ -27,7 +27,17 @@ class TestGuards(FactoryOpsTestCase):
 					"doctype": "Purchase Receipt",
 					"company": COMPANY,
 					"supplier": SUPPLIER,
-					"items": [{"item_code": QC_ITEM, "qty": 10, "rate": 100, "warehouse": warehouse}],
+					"items": [
+						{
+							"item_code": QC_ITEM,
+							"qty": 10,
+							"rate": 100,
+							"warehouse": warehouse,
+							"fo_supplier_batch_no": "SAMPLE-LOT-1",
+							"fo_mfg_date": add_days(nowdate(), -30),
+							"fo_expiry_date": add_days(nowdate(), 700),
+						}
+					],
 				}
 			)
 

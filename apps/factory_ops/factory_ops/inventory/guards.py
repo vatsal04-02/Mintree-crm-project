@@ -154,6 +154,17 @@ def validate_purchase_receipt(doc, method=None):
 		return
 	if cint(doc.get("is_return")):
 		return  # returns to the supplier may leave from any warehouse, including Rejected
+	if doc.doctype == "Purchase Invoice":
+		# QC items must come in through a Purchase Receipt, where supplier batch, dates and
+		# COA are captured. A stock-updating invoice would bypass that.
+		for row in doc.items:
+			if _qc_required(row.item_code):
+				_throw(
+					_(
+						"Row #{0}: {1} requires QC release; receive it with a Purchase Receipt, then bill it with a Purchase Invoice without stock update."
+					).format(row.idx, row.item_code)
+				)
+		return
 	for row in doc.items:
 		if not _qc_required(row.item_code):
 			continue

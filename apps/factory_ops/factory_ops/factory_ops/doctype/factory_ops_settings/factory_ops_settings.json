@@ -4,6 +4,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "purchase_section",
+  "enforce_purchase_approval",
   "qc_section",
   "min_shelf_life_days_for_dispatch",
   "column_break_qc",
@@ -13,25 +15,91 @@
   "qc_sla_hours_fg"
  ],
  "fields": [
-  {"fieldname": "qc_section", "fieldtype": "Section Break", "label": "Quality control"},
-  {"default": "0", "description": "Minimum days of shelf life a batch must have left to be dispatched. 0 blocks only expired batches. To be confirmed by the client.", "fieldname": "min_shelf_life_days_for_dispatch", "fieldtype": "Int", "label": "Minimum remaining shelf life for dispatch (days)", "non_negative": 1},
-  {"fieldname": "column_break_qc", "fieldtype": "Column Break"},
-  {"default": "48", "description": "Target hours from receipt to QC decision. SAMPLE values until the client sets them.", "fieldname": "qc_sla_hours_rm", "fieldtype": "Int", "label": "QC SLA, raw material (hours)", "non_negative": 1},
-  {"default": "24", "fieldname": "qc_sla_hours_pm", "fieldtype": "Int", "label": "QC SLA, packing material (hours)", "non_negative": 1},
-  {"default": "8", "fieldname": "qc_sla_hours_bulk", "fieldtype": "Int", "label": "QC SLA, bulk (hours)", "non_negative": 1},
-  {"default": "24", "fieldname": "qc_sla_hours_fg", "fieldtype": "Int", "label": "QC SLA, finished goods (hours)", "non_negative": 1}
+  {
+   "fieldname": "purchase_section",
+   "fieldtype": "Section Break",
+   "label": "Purchase"
+  },
+  {
+   "default": "1",
+   "description": "Purchase Orders can only be submitted by a user with a sufficient Purchase Approval Limit who did not create them. Turning this off is recorded in the change history.",
+   "fieldname": "enforce_purchase_approval",
+   "fieldtype": "Check",
+   "label": "Enforce purchase approval limits"
+  },
+  {
+   "fieldname": "qc_section",
+   "fieldtype": "Section Break",
+   "label": "Quality control"
+  },
+  {
+   "default": "0",
+   "description": "Minimum days of shelf life a batch must have left to be dispatched. 0 blocks only expired batches. To be confirmed by the client.",
+   "fieldname": "min_shelf_life_days_for_dispatch",
+   "fieldtype": "Int",
+   "label": "Minimum remaining shelf life for dispatch (days)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_qc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "48",
+   "description": "Target hours from receipt to QC decision. SAMPLE values until the client sets them.",
+   "fieldname": "qc_sla_hours_rm",
+   "fieldtype": "Int",
+   "label": "QC SLA, raw material (hours)",
+   "non_negative": 1
+  },
+  {
+   "default": "24",
+   "fieldname": "qc_sla_hours_pm",
+   "fieldtype": "Int",
+   "label": "QC SLA, packing material (hours)",
+   "non_negative": 1
+  },
+  {
+   "default": "8",
+   "fieldname": "qc_sla_hours_bulk",
+   "fieldtype": "Int",
+   "label": "QC SLA, bulk (hours)",
+   "non_negative": 1
+  },
+  {
+   "default": "24",
+   "fieldname": "qc_sla_hours_fg",
+   "fieldtype": "Int",
+   "label": "QC SLA, finished goods (hours)",
+   "non_negative": 1
+  }
  ],
  "issingle": 1,
- "modified": "2026-11-04 21:00:00.000000",
+ "modified": "2026-11-05 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Factory Ops",
  "name": "Factory Ops Settings",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "read": 1, "role": "System Manager", "write": 1},
-  {"read": 1, "role": "QA Manager", "write": 1},
-  {"read": 1, "role": "QC Officer"},
-  {"read": 1, "role": "Stock Manager"}
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "QA Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "QC Officer"
+  },
+  {
+   "read": 1,
+   "role": "Stock Manager"
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

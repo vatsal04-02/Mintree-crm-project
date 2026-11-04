@@ -1,6 +1,62 @@
 """Custom fields added to standard ERPNext DocTypes. All names start with ``fo_``."""
 
 CUSTOM_FIELDS = {
+	"Item Group": [
+		{
+			"fieldname": "fo_section",
+			"label": "Factory controls",
+			"fieldtype": "Section Break",
+			"insert_after": "item_group_defaults",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "fo_qc_required",
+			"label": "Items need QC release",
+			"fieldtype": "Check",
+			"insert_after": "fo_section",
+			"description": "Stock items in this group are batch-tracked and must be released by QC.",
+		},
+		{
+			"fieldname": "fo_coa_required",
+			"label": "Supplier COA required on receipt",
+			"fieldtype": "Check",
+			"insert_after": "fo_qc_required",
+		},
+	],
+	"Purchase Receipt Item": [
+		{
+			"fieldname": "fo_supplier_section",
+			"label": "Supplier batch",
+			"fieldtype": "Section Break",
+			"insert_after": "batch_no",
+		},
+		{
+			"fieldname": "fo_supplier_batch_no",
+			"label": "Supplier Batch No",
+			"fieldtype": "Data",
+			"insert_after": "fo_supplier_section",
+			"in_list_view": 0,
+		},
+		{
+			"fieldname": "fo_mfg_date",
+			"label": "Manufacturing Date",
+			"fieldtype": "Date",
+			"insert_after": "fo_supplier_batch_no",
+		},
+		{"fieldname": "fo_col_supplier", "fieldtype": "Column Break", "insert_after": "fo_mfg_date"},
+		{
+			"fieldname": "fo_expiry_date",
+			"label": "Expiry Date",
+			"fieldtype": "Date",
+			"insert_after": "fo_col_supplier",
+		},
+		{
+			"fieldname": "fo_coa",
+			"label": "Certificate of Analysis",
+			"fieldtype": "Attach",
+			"insert_after": "fo_expiry_date",
+		},
+	],
 	"Warehouse": [
 		{
 			"fieldname": "fo_release_warehouse",
@@ -13,6 +69,13 @@ CUSTOM_FIELDS = {
 		},
 	],
 	"Item": [
+		{
+			"fieldname": "fo_coa_required",
+			"label": "Supplier COA Required",
+			"fieldtype": "Check",
+			"default": "0",
+			"insert_after": "fo_qc_required",
+		},
 		{
 			"fieldname": "fo_qc_required",
 			"label": "QC Release Required",
@@ -41,6 +104,12 @@ CUSTOM_FIELDS = {
 			"label": "Supplier Batch No",
 			"fieldtype": "Data",
 			"insert_after": "supplier",
+		},
+		{
+			"fieldname": "fo_coa",
+			"label": "Certificate of Analysis",
+			"fieldtype": "Attach",
+			"insert_after": "fo_supplier_batch_no",
 		},
 	],
 	"Stock Entry": [

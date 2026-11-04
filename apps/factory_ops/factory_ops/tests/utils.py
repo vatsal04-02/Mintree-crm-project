@@ -11,8 +11,7 @@ from erpnext.tests.utils import ERPNextTestSuite
 from frappe.utils import add_days, nowdate
 
 from factory_ops.constants import ROLE_QA_MANAGER, ROLE_QC_OFFICER
-from factory_ops.setup.install import apply_setup
-from factory_ops.setup.warehouses import ensure_warehouse_tree
+from factory_ops.setup.sample_company import setup_company_masters
 
 COMPANY = "_Test Company"
 
@@ -26,6 +25,20 @@ USER_STORES = "fo-stores@example.com"
 USER_PRODUCTION = "fo-production@example.com"
 USER_SALES = "fo-sales@example.com"
 USER_QC_RECEIVER = "fo-qc-receiver@example.com"  # QC officer who also receives goods
+USER_BUYER = "fo-buyer@example.com"  # raises purchase documents, no approval limit
+USER_APPROVER_LOW = "fo-approver-low@example.com"  # limit 10,000
+USER_APPROVER_HIGH = "fo-approver-high@example.com"  # limit 10,00,000
+LIMIT_LOW = 10_000
+LIMIT_HIGH = 1_000_000
+
+
+def ensure_approval_limit(user: str, limit: float) -> None:
+	if frappe.db.exists("Purchase Approval Limit", user):
+		frappe.db.set_value("Purchase Approval Limit", user, {"approval_limit": limit, "enabled": 1})
+	else:
+		frappe.get_doc({"doctype": "Purchase Approval Limit", "user": user, "approval_limit": limit}).insert(
+			ignore_permissions=True
+		)
 
 
 def ensure_user(email: str, roles: list[str]) -> str:
@@ -86,8 +99,7 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 	def setUpClass(cls):
 		super().setUpClass()
 		frappe.set_user("Administrator")
-		apply_setup()
-		cls.wh = ensure_warehouse_tree(COMPANY)
+		cls.wh = setup_company_masters(COMPANY)  # same code as the SAMPLE dev site
 		ensure_batch_item(QC_ITEM)
 		ensure_batch_item(FG_ITEM, uom="Nos")
 		ensure_batch_item(PLAIN_ITEM, qc_required=0)
@@ -97,6 +109,11 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 		ensure_user(USER_PRODUCTION, ["Manufacturing User", "Stock User"])
 		ensure_user(USER_SALES, ["Sales User", "Stock User"])
 		ensure_user(USER_QC_RECEIVER, [ROLE_QC_OFFICER, "Stock User"])
+		ensure_user(USER_BUYER, ["Purchase User"])
+		ensure_user(USER_APPROVER_LOW, ["Purchase Manager", "Purchase User"])
+		ensure_user(USER_APPROVER_HIGH, ["Purchase Manager", "Purchase User"])
+		ensure_approval_limit(USER_APPROVER_LOW, LIMIT_LOW)
+		ensure_approval_limit(USER_APPROVER_HIGH, LIMIT_HIGH)
 		frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
 		frappe.db.set_single_value("Stock Settings", "pick_serial_and_batch_based_on", "Expiry")
 		frappe.db.commit()
