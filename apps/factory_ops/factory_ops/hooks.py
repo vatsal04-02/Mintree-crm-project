@@ -1,0 +1,89 @@
+app_name = "factory_ops"
+app_title = "Factory Ops"
+app_publisher = "FlowHQ"
+app_description = "Mintree Factory OS: factory-specific operations on ERPNext (QC quarantine, approvals, production controls)"
+app_email = "dev@flowhq.invalid"
+app_license = "gpl-3.0"
+
+required_apps = ["frappe/erpnext"]
+
+# ---------------------------------------------------------------------------
+# Installation. Custom fields, roles, permissions and warehouse types are
+# declared in code (factory_ops/setup/*) and re-applied on every migrate, so a
+# fresh site and an upgraded site end up identical. See docs/DECISIONS.md D-005.
+# ---------------------------------------------------------------------------
+after_install = "factory_ops.setup.install.after_install"
+after_migrate = "factory_ops.setup.install.after_migrate"
+before_uninstall = "factory_ops.setup.install.before_uninstall"
+
+# ---------------------------------------------------------------------------
+# Server-side QC guards. Every route that can move, reserve or plan stock out of
+# a QC Hold or Rejected warehouse is checked here. See
+# docs/DATABASE_AND_WORKFLOW_DESIGN.md section 3.3.
+# ---------------------------------------------------------------------------
+_guard = "factory_ops.inventory.guards"
+
+doc_events = {
+	"Stock Entry": {
+		"validate": f"{_guard}.validate_stock_entry",
+		"before_submit": f"{_guard}.validate_stock_entry",
+		"on_submit": f"{_guard}.on_inward_submit",
+		"before_cancel": f"{_guard}.before_cancel_stock_entry",
+		"on_cancel": f"{_guard}.on_inward_cancel",
+	},
+	"Purchase Receipt": {
+		"validate": f"{_guard}.validate_purchase_receipt",
+		"before_submit": f"{_guard}.validate_purchase_receipt",
+		"on_submit": f"{_guard}.on_inward_submit",
+		"on_cancel": f"{_guard}.on_inward_cancel",
+	},
+	"Purchase Invoice": {
+		"validate": f"{_guard}.validate_purchase_receipt",
+		"before_submit": f"{_guard}.validate_purchase_receipt",
+	},
+	"Delivery Note": {
+		"validate": f"{_guard}.validate_outward_sales_doc",
+		"before_submit": f"{_guard}.validate_outward_sales_doc",
+		# batches may be auto-selected (FEFO) during submit, so G6 runs again once bundles exist
+		"on_submit": f"{_guard}.validate_shelf_life",
+	},
+	"Sales Invoice": {
+		"validate": f"{_guard}.validate_outward_sales_doc",
+		"before_submit": f"{_guard}.validate_outward_sales_doc",
+		# batches may be auto-selected (FEFO) during submit, so G6 runs again once bundles exist
+		"on_submit": f"{_guard}.validate_shelf_life",
+	},
+	"Pick List": {
+		"validate": f"{_guard}.validate_pick_list",
+		"before_submit": f"{_guard}.validate_pick_list",
+	},
+	"Stock Reservation Entry": {
+		"validate": f"{_guard}.validate_stock_reservation",
+		"before_submit": f"{_guard}.validate_stock_reservation",
+	},
+	"Work Order": {
+		"validate": f"{_guard}.validate_work_order",
+		"before_submit": f"{_guard}.validate_work_order",
+	},
+	"Material Request": {
+		"validate": f"{_guard}.validate_material_request",
+		"before_submit": f"{_guard}.validate_material_request",
+	},
+	"Subcontracting Order": {
+		"validate": f"{_guard}.validate_subcontracting_order",
+		"before_submit": f"{_guard}.validate_subcontracting_order",
+	},
+	"Stock Reconciliation": {
+		"validate": f"{_guard}.validate_stock_reconciliation",
+		"before_submit": f"{_guard}.validate_stock_reconciliation",
+	},
+}
+
+scheduler_events = {
+	"daily": ["factory_ops.quality.batch_status.nightly_consistency_check"],
+}
+
+# Exported configuration that is edited in Desk and then version-controlled.
+fixtures = [
+	{"dt": "Workspace", "filters": [["module", "in", ["Factory Ops", "Quality"]]]},
+]

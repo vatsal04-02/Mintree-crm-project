@@ -1,0 +1,58 @@
+# Runs the factory_ops test suite against the pinned Frappe/ERPNext versions.
+# Not yet executed on GitHub Actions (see docs/OPEN_ISSUES.md); the same steps run locally
+# via deploy/dev/setup-dev.sh.
+name: factory_ops tests
+
+on:
+  push:
+    paths: ["apps/factory_ops/**", ".github/workflows/factory-ops-ci.yml"]
+  pull_request:
+    paths: ["apps/factory_ops/**", ".github/workflows/factory-ops-ci.yml"]
+
+env:
+  FRAPPE_VERSION: v16.55.2
+  ERPNEXT_VERSION: v16.53.0
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: ci-root
+        ports: ["3306:3306"]
+        options: --health-cmd="mariadb-admin ping -pci-root" --health-interval=5s --health-timeout=2s --health-retries=10
+      cache:
+        image: valkey/valkey:8.1-alpine
+        ports: ["13000:6379"]
+      queue:
+        image: valkey/valkey:8.1-alpine
+        ports: ["11000:6379"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.14" }
+      - uses: actions/setup-node@v6
+        with: { node-version: 24 }
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y mariadb-client libmariadb-dev pkg-config
+      - name: Bench
+        run: |
+          pip install frappe-bench==5.31.1
+          npm install -g yarn@1
+          cd ~ && bench init --frappe-branch "$FRAPPE_VERSION" --python python3.14 --skip-redis-config-generation --no-backups frappe-bench
+          cd ~/frappe-bench
+          bench set-config -g db_host 127.0.0.1
+          bench set-config -g redis_cache redis://127.0.0.1:13000
+          bench set-config -g redis_queue redis://127.0.0.1:11000
+          bench set-config -g redis_socketio redis://127.0.0.1:11000
+          bench get-app --branch "$ERPNEXT_VERSION" erpnext https://github.com/frappe/erpnext.git
+          bench get-app factory_ops "$GITHUB_WORKSPACE/apps/factory_ops"
+          bench new-site test.localhost --db-root-username root --db-root-password ci-root --admin-password ci-admin --install-app erpnext
+          bench --site test.localhost install-app factory_ops
+          bench --site test.localhost set-config allow_tests true
+      - name: Lint
+        run: pipx run ruff==0.14.3 check apps/factory_ops/factory_ops
+      - name: Tests
+        run: cd ~/frappe-bench && bench --site test.localhost run-tests --app factory_ops
