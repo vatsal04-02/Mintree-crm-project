@@ -147,6 +147,9 @@ rejected. Instead:
 - only rows ERPNext filled during this save are redirected. Rows typed by a user or set on the BOM are
   kept as entered and then checked by the guards, so a manual QC Hold or Rejected source is refused,
   never silently changed.
+- Addendum (CI run 7): ERPNext can also fill a component from the *item's own* default warehouse,
+  which may be a plain usable store. A configured production source wins over any value ERPNext
+  filled, restricted or not. ERPNext's value is kept only when nothing is configured or derivable.
 
 **D-022 Two-stage rule.** ERPNext's *Use Multi-Level BOM* defaults to on and would explode the bulk into
 its raw materials, skipping bulk QC entirely (found by the first FG test run). New Work Orders whose BOM

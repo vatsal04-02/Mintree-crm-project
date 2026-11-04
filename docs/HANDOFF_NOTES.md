@@ -22,8 +22,9 @@ container. Last updated 2026-11-05, end of Milestone 4 (production).
   - production: SAMPLE BOMs, two-stage Work Orders, configurable production warehouses, wastage
     write-offs, batch label (`PRODUCTION_WORKFLOW.md`).
 - **Test evidence:** `PHASE_1_TEST_RESULTS.md`.
-  - 92 tests pass (77 earlier + 15 production), on the dev bench and twice in a row on a clean,
-    independent bench; a site installed from nothing has the full setup.
+  - 93 tests pass (77 earlier + 16 production) on the dev bench; 92 passed twice in a row on a clean,
+    independent bench before the last one-test fix; a site installed from nothing has the full setup.
+  - CI on GitHub Actions passes on commit e7d23e1 (run 8: 93 tests OK, lint OK).
   - HTTP acceptance 16/16 (purchase/QC) and 15/15 (production); browser checks 17/17 (QC) and 14/14
     (production); workers and scheduler verified running jobs.
 - **Not started (by instruction):** R&D, marketplace integrations, AI.

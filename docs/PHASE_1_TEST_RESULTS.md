@@ -6,11 +6,12 @@ Every number here comes from a run in this session's rebuilt environment. Nothin
 
 | Layer | Where | Result |
 | --- | --- | --- |
-| Full automated suite, final code | dev bench `test.localhost` (3rd consecutive full run on the same site) | **Ran 92 tests in 134.4 s — OK** |
+| CI, GitHub Actions run 8 (commit e7d23e1) | ubuntu-24.04, fresh site | **Ran 93 tests in 91.9 s — OK**; lint OK |
+| Full automated suite, final code (commit e7d23e1) | dev bench `test.localhost` (repeated full runs on the same site) | **Ran 93 tests in 130.5 s — OK** |
 | Clean environment: `setup-dev.sh` into a second, independent bench (own MariaDB, Valkey, ports 3308/13101/11101) | `~/clean-bench` | script exit 0; **two back-to-back full runs: 92 OK (135.4 s), 92 OK (133.1 s)** |
 | Clean site from nothing | `fresh.localhost` on the clean bench: new-site → ERPNext → factory_ops → `setup_dev_site` → sample users | completed; BOMs (2 % loss), Wastage type, Batch Label, Company WIP/wastage account, production sources per group, 5 wastage reasons, backflush setting all present |
 | HTTP acceptance, purchase/QC (`acceptance_http.py`) | dev site, REST, SAMPLE users | **16/16** |
-| HTTP acceptance, production (`acceptance_production_http.py`) | dev site, REST, SAMPLE users | **15/15** (last run) |
+| HTTP acceptance, production (`acceptance_production_http.py`) | dev site, REST, SAMPLE users | **15/15** (re-run on commit e7d23e1) |
 | Browser, QC screens (`ui_check.js`) | Playwright/Chromium, QC Officer + QA Manager | **17/17** |
 | Browser, production screens (`ui_check_production.js`) | Playwright/Chromium, production user | **14/14**; screenshots in `docs/screenshots/production/` |
 | Desk | `bench serve`, `/desk` as SAMPLE users | loads; Work Order, BOM, Batch, print view checked visually |
@@ -19,15 +20,20 @@ Every number here comes from a run in this session's rebuilt environment. Nothin
 | Lint | `ruff check` / `ruff format --check` | clean |
 
 The 77 earlier tests (QC engine, guards, retest, lifecycle routes, purchase, acceptance, install)
-pass unchanged alongside the 15 new production tests.
+pass unchanged alongside the 16 production tests.
 
-### Production tests (`tests/test_production.py`, 15)
+The clean-bench runs (92 tests) were on commit a260dc9, before the one-test fix below; on e7d23e1 the
+clean bench ran the production module again: 16/16 OK.
+
+### Production tests (`tests/test_production.py`, 16)
 
 Controls (`_Test Company`):
 - `test_sample_boms`: BULK 100 kg / 2 % loss from 5 + 95 kg; FG from 30 kg bulk + 1,000 bottles with
   the bulk BOM as sub-assembly; idempotent setup.
 - `test_work_order_warehouse_defaults`: default BOM filled on the server; WIP; output into the QC Hold
   warehouse; components from RM/BULK/PM stores.
+- `test_configured_source_beats_an_item_level_default_warehouse`: an item's own plain default
+  warehouse does not override the configured production source (found through CI run 7).
 - `test_defaults_for_three_component_groups`: one BOM drawing BULK, PM and RM, each from its own store.
 - `test_warehouse_mapping_is_configuration`: group setting, item override beating the group, Company WIP,
   and the fallback to the QC release destination.
@@ -85,11 +91,15 @@ End to end (`_FO Perpetual Company`, perpetual inventory on):
 | Rollback test | Manufacturing User cannot cancel Stock Entries (ERPNext permission) | cancellation done by Stock Manager / QA Manager | `test_released_bulk_that_was_used_cannot_be_unmade` |
 | Short-fill test | ERPNext returns components only from a Completed or Closed order | close the Work Order first (documented) | E2E step 8 |
 | HTTP acceptance | Work Order BOM filled only in the browser; REST got "BOM No is mandatory" | server-side default BOM | HTTP check 2, `test_work_order_warehouse_defaults` |
+| CI run 7 (commit a260dc9): 92 run, 1 error | on a fresh site the item already had an Item Default for the test company; the test's `append` hit "Cannot set multiple Item Defaults". Reproducing it locally showed a real gap: ERPNext fills the component source from an item's own plain default warehouse, and the configured production source was ignored | test reuses the row; ERPNext-filled rows always take the configured source (D-021) | `test_configured_source_beats_an_item_level_default_warehouse`; module 16/16 with and without the row |
 | HTTP acceptance (4th run) | own script compared raw ledger rows; FEFO split consumption over two batches | compare totals per item and warehouse | HTTP checks 3, 9, 10 |
 | Label render | two pages, 15 mm margins; later text wrapping | `@page` in the Print Format css; layout; Chrome generator named explicitly (D-025) | HTTP check 13, screenshot `17-batch-label-pdf.png` |
 | Clean-bench 2nd run (1 failure) | site migrated before the label existed, then ran newer test code | migrate then run; two clean runs both OK | — |
 
-Not yet run: **CI on GitHub Actions for this commit** (see the commit's Actions run).
+CI on GitHub Actions: run 6 (WIP commit d48358c) failed, as expected for untested code; run 7
+(a260dc9) failed 1 of 92 (the Item Default case above); **run 8 (e7d23e1): success — Ran 93 tests in 91.9 s, OK; lint OK** (ubuntu-24.04, MariaDB 11.8.9,
+Valkey 8.1).
+https://github.com/vatsal04-02/Mintree-crm-project/actions/runs/41929122791
 
 ---
 

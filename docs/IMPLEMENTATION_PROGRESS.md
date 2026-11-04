@@ -158,7 +158,7 @@ apps/factory_ops/factory_ops/
   setup/install.py                                    Wastage stock entry type
   setup/sample_company.py, setup/warehouses.py        BOMs, wastage reasons/account, production sources, WIP, Manufacturing Settings
   setup/sample_users.py                               SAMPLE production user
-  tests/test_production.py                            15 tests (12 controls, 3 end-to-end on a perpetual-inventory company)
+  tests/test_production.py                            16 tests (13 controls, 3 end-to-end on a perpetual-inventory company)
   tests/utils.py                                      valuation-method fix (D-024)
 deploy/dev/acceptance_production_http.py              HTTP production acceptance (15 checks)
 deploy/dev/ui_check_production.js                     browser check of production screens (14 checks)
