@@ -180,6 +180,23 @@ class TestProductionControls(ProductionTestCase):
 			{BULK: self.wh["BULK-STORES"], PM: self.wh["PM-STORES"]},
 		)
 
+	def test_configured_source_beats_an_item_level_default_warehouse(self):
+		"""ERPNext fills a component source from the item's own default warehouse first; a
+		configured Production Source Warehouse must still win (found reproducing a CI failure)."""
+		plain = ensure_usable_warehouse("PM-RECEIVING-BAY", self.company)
+		item = frappe.get_doc("Item", PM)
+		row = next((d for d in item.item_defaults if d.company == self.company), None)
+		if not row:
+			row = item.append("item_defaults", {"company": self.company})
+		row.default_warehouse = plain
+		row.fo_production_warehouse = None
+		item.save()
+		self.addCleanup(frappe.clear_cache)
+		wo = self.work_order(FG, 1000, submit=False)
+		self.assertEqual(
+			next(r.source_warehouse for r in wo.required_items if r.item_code == PM), self.wh["PM-STORES"]
+		)
+
 	def test_defaults_for_three_component_groups(self):
 		"""One BOM drawing RM, PM and BULK: each component comes from its own group's store."""
 		bom = frappe.get_doc(
@@ -224,17 +241,22 @@ class TestProductionControls(ProductionTestCase):
 		self.assertEqual(wo.wip_warehouse, alt_wip)
 		self.assertEqual(next(r.source_warehouse for r in wo.required_items if r.item_code == PM), alt)
 		# an item-level setting beats the group's
+		# (a fresh site may already give the item a default row for this company: reuse it, since
+		# ERPNext allows one Item Default per company)
 		item = frappe.get_doc("Item", PM)
-		item.append(
-			"item_defaults", {"company": self.company, "fo_production_warehouse": self.wh["PM-STORES"]}
-		)
+		row = next((d for d in item.item_defaults if d.company == self.company), None)
+		if not row:
+			row = item.append("item_defaults", {"company": self.company})
+		row.fo_production_warehouse = self.wh["PM-STORES"]
 		item.save()
 		wo = self.work_order(FG, 1000, submit=False)
 		self.assertEqual(
 			next(r.source_warehouse for r in wo.required_items if r.item_code == PM), self.wh["PM-STORES"]
 		)
 		# with nothing configured, the QC release destination of the default warehouse is used
-		item.item_defaults = []
+		row = next(d for d in item.item_defaults if d.company == self.company)
+		row.fo_production_warehouse = None
+		row.default_warehouse = None  # an item-level default warehouse would beat the group's
 		item.save()
 		set_group_production_source("PM", self.company, None)
 		wo = self.work_order(FG, 1000, submit=False)

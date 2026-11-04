@@ -129,8 +129,9 @@ def set_work_order_component_sources(doc, method=None):
 	for row in doc.get("required_items") or []:
 		if id(row) in user_rows or row.item_code in bom_sources:
 			continue  # entered by a user, or set on the BOM: keep it (guarded)
-		if not row.get("source_warehouse") or is_restricted(row.source_warehouse):
-			row.source_warehouse = production_source(row.item_code, doc.company) or row.source_warehouse
+		# ERPNext filled this row from a plain default warehouse; the configured production source
+		# wins over that, whether or not ERPNext's choice happens to be restricted
+		row.source_warehouse = production_source(row.item_code, doc.company) or row.source_warehouse
 
 
 def validate_two_stage(doc, method=None):
