@@ -73,3 +73,10 @@ def get_row_batches(row) -> list[str]:
 				)
 			)
 	return list(dict.fromkeys(batches))
+
+
+def usable_group(company: str) -> str | None:
+	"""The company's USABLE group warehouse (created by setup/warehouses.py)."""
+	return frappe.db.get_value(
+		"Warehouse", {"company": company, "warehouse_name": "USABLE", "is_group": 1}, "name"
+	)

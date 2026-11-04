@@ -54,8 +54,15 @@ doc_events = {
 		"on_submit": f"{_guard}.validate_shelf_life",
 	},
 	"Pick List": {
+		"before_validate": f"{_guard}.default_pick_list_warehouse",
 		"validate": f"{_guard}.validate_pick_list",
+		# ERPNext computes locations in before_save, after validate, so check again there
+		"before_save": f"{_guard}.validate_pick_list",
 		"before_submit": f"{_guard}.validate_pick_list",
+	},
+	"Sales Order": {
+		"validate": f"{_guard}.validate_sales_order",
+		"before_submit": f"{_guard}.validate_sales_order",
 	},
 	"Stock Reservation Entry": {
 		"validate": f"{_guard}.validate_stock_reservation",

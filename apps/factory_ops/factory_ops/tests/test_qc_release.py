@@ -120,15 +120,16 @@ class TestQCRelease(FactoryOpsTestCase):
 			self.assertEqual(se.docstatus, 1)
 		self.assertEqual(self.qty(self.rejected), 90)
 
-	def test_09_only_qa_manager_returns_rejected_stock_to_hold(self):
+	def test_09_rejected_stock_cannot_be_moved_back_to_hold_by_a_plain_transfer(self):
+		"""Only a QC Retest may move rejected stock back into QC Hold (test_qc_retest.py)."""
 		self.qc_release(
 			self.batch, "Reject", qty=100, qi_status="Rejected", reason="SAMPLE: retest requested"
 		)
 		with self.set_user(USER_STORES):
 			self.assertRaises(QCGuardError, self.transfer, QC_ITEM, self.batch, 100, self.rejected, self.hold)
-		# Administrator holds every role, QA Manager included, so the re-inspection move is allowed
-		self.transfer(QC_ITEM, self.batch, 100, self.rejected, self.hold)
-		self.assertEqual(self.qty(self.hold), 100)
+		# not even Administrator, who holds every role
+		self.assertRaises(QCGuardError, self.transfer, QC_ITEM, self.batch, 100, self.rejected, self.hold)
+		self.assertEqual(self.qty(self.rejected), 100)
 
 	# Scenario 10 ---------------------------------------------------------------
 	def test_10_receiver_cannot_release_own_batch(self):

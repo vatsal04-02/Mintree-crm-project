@@ -1,11 +1,11 @@
 """Every other route that could bypass QC: each is tried on a held (or rejected) batch and
 must be refused server-side, and each has a positive control on released stock so the
-guards are shown not to over-block."""
+guards are shown not to over-block. Pick List, Stock Reservation, Subcontracting Order, sales
+returns, Purchase Invoice, manufacturing and repack are in test_lifecycle_routes.py."""
 
 import frappe
 from frappe.utils import add_days, nowdate
 
-from factory_ops.inventory import guards
 from factory_ops.inventory.guards import QCGuardError
 from factory_ops.tests.utils import COMPANY, FG_ITEM, PLAIN_ITEM, QC_ITEM, FactoryOpsTestCase
 
@@ -91,36 +91,6 @@ class TestGuards(FactoryOpsTestCase):
 		)
 		self.assertRaises(QCGuardError, si.insert)
 
-	def test_pick_list_from_hold_is_blocked(self):
-		pl = frappe.new_doc("Pick List")
-		pl.update({"company": COMPANY, "purpose": "Material Transfer"})
-		pl.append(
-			"locations",
-			{"item_code": QC_ITEM, "qty": 5, "stock_qty": 5, "warehouse": self.hold, "batch_no": self.batch},
-		)
-		self.assertRaises(QCGuardError, guards.validate_pick_list, pl)
-
-	def test_stock_reservation_in_hold_is_blocked(self):
-		sre = frappe.new_doc("Stock Reservation Entry")
-		sre.update(
-			{
-				"item_code": QC_ITEM,
-				"warehouse": self.hold,
-				"voucher_type": "Sales Order",
-				"voucher_no": "SO-X",
-			}
-		)
-		self.assertRaises(QCGuardError, guards.validate_stock_reservation, sre)
-		sre.warehouse = self.wh["REJECTED"]
-		self.assertRaises(QCGuardError, guards.validate_stock_reservation, sre)
-
-	def test_sales_return_must_come_back_into_qc_hold(self):
-		ret = self._dn(self.wh["FG-STORES"], None, qty=-1)
-		ret.is_return = 1
-		self.assertRaises(QCGuardError, guards.validate_outward_sales_doc, ret)
-		ret.items[0].warehouse = self.wh["RETURNS-QC-HOLD"]
-		guards.validate_outward_sales_doc(ret)  # allowed
-
 	def test_minimum_shelf_life_for_dispatch(self):
 		_, short_batch = self.receive(QC_ITEM, self.hold, 20, expiry_days=30)
 		self.qc_release(short_batch, "Release")
@@ -190,14 +160,6 @@ class TestGuards(FactoryOpsTestCase):
 			}
 		)
 		self.assertRaises(QCGuardError, mr.insert)
-
-	def test_subcontracting_supplied_items_cannot_be_reserved_in_hold(self):
-		sco = frappe.new_doc("Subcontracting Order")
-		sco.set_reserve_warehouse = self.hold
-		self.assertRaises(QCGuardError, guards.validate_subcontracting_order, sco)
-		sco.set_reserve_warehouse = None
-		sco.append("supplied_items", {"rm_item_code": QC_ITEM, "reserve_warehouse": self.hold})
-		self.assertRaises(QCGuardError, guards.validate_subcontracting_order, sco)
 
 	def test_stock_reconciliation_cannot_count_held_batch_into_usable(self):
 		reco = frappe.get_doc(

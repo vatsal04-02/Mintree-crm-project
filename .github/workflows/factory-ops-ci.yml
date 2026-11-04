@@ -50,6 +50,7 @@ jobs:
           # factory_ops is a subdirectory of this repo, so bench cannot git-clone it; link and install it
           ln -s "$GITHUB_WORKSPACE/apps/factory_ops" apps/factory_ops
           uv pip install --quiet -e apps/factory_ops --python env/bin/python
+          [ -n "$(tail -c1 sites/apps.txt)" ] && echo >> sites/apps.txt
           echo factory_ops >> sites/apps.txt
           bench new-site test.localhost --db-root-username root --db-root-password ci-root --admin-password ci-admin --install-app erpnext
           bench --site test.localhost install-app factory_ops

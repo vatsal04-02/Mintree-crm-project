@@ -12,6 +12,26 @@ frappe.ui.form.on("QC Release", {
 					.then((r) => frappe.set_route("Form", "Quality Inspection", r.message));
 			});
 		}
+		if (frm.doc.docstatus === 1 && frm.doc.decision === "Reject" && frappe.user.has_role("QA Manager")) {
+			frm.add_custom_button(__("Send for Re-test"), () => {
+				frappe.prompt(
+					[
+						{ fieldname: "reason", fieldtype: "Small Text", label: __("Why re-test"), reqd: 1 },
+						{ fieldname: "qty", fieldtype: "Float", label: __("Quantity (blank = all rejected)") },
+					],
+					(v) =>
+						frappe
+							.call("factory_ops.quality.doctype.qc_retest.qc_retest.send_for_retest", {
+								qc_release: frm.doc.name,
+								reason: v.reason,
+								qty: v.qty,
+							})
+							.then((r) => frappe.set_route("Form", "QC Retest", r.message)),
+					__("Send for Re-test"),
+					__("Send"),
+				);
+			});
+		}
 		frm.set_query("source_warehouse", () => ({
 			filters: { warehouse_type: "QC Hold", company: frm.doc.company, is_group: 0 },
 		}));

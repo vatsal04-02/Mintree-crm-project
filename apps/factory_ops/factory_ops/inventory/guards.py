@@ -6,7 +6,7 @@ data import and server scripts alike. UI restrictions are never relied on.
 
 G1  Nothing leaves a QC Hold warehouse except through a QC Release.
 G2  Nothing leaves a Rejected warehouse except scrap (with a reason), return to the
-    supplier, or a QA Manager's transfer back into QC Hold for re-inspection.
+    supplier, or a QC Retest ("Send for Re-test", QA Manager) back into QC Hold.
 G3  QC Hold and Rejected stock cannot be reserved, picked or planned for use.
 G6  Expired stock, and stock below the minimum remaining shelf life, cannot be dispatched.
 +   Items flagged "QC Release Required" must be received or produced into a QC Hold warehouse,
@@ -18,10 +18,16 @@ import frappe
 from frappe import _
 from frappe.utils import cint, date_diff, getdate
 
-from factory_ops.constants import ROLE_QA_MANAGER
-from factory_ops.inventory.stock_queries import get_row_batches, is_qc_hold, is_rejected, is_restricted
+from factory_ops.inventory.stock_queries import (
+	get_row_batches,
+	is_qc_hold,
+	is_rejected,
+	is_restricted,
+	usable_group,
+)
 
 RELEASE_FLAG = "fo_qc_release_in_progress"
+RETEST_FLAG = "fo_qc_retest_in_progress"
 
 
 class QCGuardError(frappe.ValidationError):
@@ -44,6 +50,12 @@ def _is_release_in_progress(doc) -> bool:
 	"""
 	active = frappe.flags.get(RELEASE_FLAG)
 	return bool(active) and doc.get("fo_qc_release") == active
+
+
+def _is_retest_in_progress(doc) -> bool:
+	"""True only while QC Retest server code is submitting its own Stock Entry."""
+	active = frappe.flags.get(RETEST_FLAG)
+	return bool(active) and doc.get("fo_qc_retest") == active
 
 
 def _submitting(doc) -> bool:
@@ -100,6 +112,8 @@ def validate_stock_entry(doc, method=None):
 
 
 def _validate_rejected_exit(doc, row):
+	if _is_retest_in_progress(doc) and row.t_warehouse and is_qc_hold(row.t_warehouse):
+		return
 	if doc.purpose == "Material Issue":
 		if not (doc.get("fo_disposal_reason") or "").strip():
 			_throw(
@@ -108,18 +122,22 @@ def _validate_rejected_exit(doc, row):
 				).format(row.idx, row.s_warehouse)
 			)
 		return
-	if doc.purpose == "Material Transfer" and row.t_warehouse and is_qc_hold(row.t_warehouse):
-		if ROLE_QA_MANAGER not in frappe.get_roles():
-			_throw(_("Only a QA Manager can move rejected stock back into QC Hold for re-inspection."))
-		return
+	if doc.get("fo_qc_retest") and not _submitting(doc):
+		return  # draft prepared by a QC Retest; submission is checked by the flag above
 	_throw(
 		_(
-			"Row #{0}: stock in Rejected warehouse {1} can only be scrapped (Material Issue with a reason), returned to the supplier, or moved back to QC Hold by a QA Manager."
+			"Row #{0}: stock in Rejected warehouse {1} can only be scrapped (Material Issue with a reason), returned to the supplier, or sent for re-test by a QA Manager (QC Retest)."
 		).format(row.idx, row.s_warehouse)
 	)
 
 
 def before_cancel_stock_entry(doc, method=None):
+	if doc.get("fo_qc_retest") and not _is_retest_in_progress(doc):
+		_throw(
+			_("Stock Entry {0} was created by QC Retest {1}. Cancel the QC Retest instead.").format(
+				doc.name, doc.fo_qc_retest
+			)
+		)
 	if doc.get("fo_qc_release") and not _is_release_in_progress(doc):
 		_throw(
 			_("Stock Entry {0} was created by QC Release {1}. Cancel the QC Release instead.").format(
@@ -187,8 +205,21 @@ def validate_shelf_life(doc, method=None):
 	min_days = cint(frappe.db.get_single_value("Factory Ops Settings", "min_shelf_life_days_for_dispatch"))
 	posting = getdate(doc.get("posting_date"))
 	rows = doc.get("items") if doc.doctype != "Pick List" else doc.get("locations")
+	submitted_batches: dict[str, list[str]] = {}
+	if cint(doc.docstatus) == 1 and doc.doctype != "Pick List":
+		# After submit the bundles exist, but their names are not on the in-memory rows when
+		# ERPNext auto-picked the batches (FEFO) during submit: read them from the database.
+		for r in frappe.db.sql(
+			"""select sbb.voucher_detail_no, sbe.batch_no
+			from `tabSerial and Batch Entry` sbe
+			inner join `tabSerial and Batch Bundle` sbb on sbb.name = sbe.parent
+			where sbb.voucher_type = %s and sbb.voucher_no = %s and sbe.batch_no is not null""",
+			(doc.doctype, doc.name),
+			as_dict=True,
+		):
+			submitted_batches.setdefault(r.voucher_detail_no, []).append(r.batch_no)
 	for row in rows or []:
-		for batch in get_row_batches(row):
+		for batch in dict.fromkeys(get_row_batches(row) + submitted_batches.get(row.name, [])):
 			expiry = frappe.db.get_value("Batch", batch, "expiry_date")
 			if not expiry:
 				continue
@@ -206,7 +237,19 @@ def validate_shelf_life(doc, method=None):
 # ---------------------------------------------------------------------------
 # Pick List, Stock Reservation Entry, Work Order, Material Request, Subcontracting
 # ---------------------------------------------------------------------------
+def default_pick_list_warehouse(doc, method=None):
+	"""Without a parent warehouse ERPNext suggests locations from every warehouse, QC Hold
+	included. Default the search to the company's USABLE group so suggestions are pickable."""
+	if not doc.get("parent_warehouse") and doc.get("company"):
+		doc.parent_warehouse = usable_group(doc.company)
+
+
 def validate_pick_list(doc, method=None):
+	# ERPNext recomputes suggested locations in before_save unless the list is picked manually,
+	# so at the validate stage only manually picked locations are final. before_save and
+	# before_submit always check.
+	if method == "validate" and not cint(doc.get("pick_manually")):
+		return
 	for row in doc.get("locations") or []:
 		if is_restricted(row.warehouse):
 			_throw(
@@ -216,6 +259,20 @@ def validate_pick_list(doc, method=None):
 			)
 	if doc.get("purpose") == "Delivery":
 		validate_shelf_life(doc)
+
+
+def validate_sales_order(doc, method=None):
+	if is_restricted(doc.get("set_warehouse")):
+		_throw(
+			_("Sales Orders cannot be fulfilled from {0} (QC Hold or Rejected).").format(doc.set_warehouse)
+		)
+	for row in doc.items:
+		if is_restricted(row.get("warehouse")):
+			_throw(
+				_("Row #{0}: {1} cannot be sold from {2} (QC Hold or Rejected stock).").format(
+					row.idx, row.item_code, row.warehouse
+				)
+			)
 
 
 def validate_stock_reservation(doc, method=None):

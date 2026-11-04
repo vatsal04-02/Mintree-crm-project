@@ -42,7 +42,11 @@ bench set-config -g redis_socketio "redis://127.0.0.1:$DEV_QUEUE_PORT"
 if [ ! -e apps/factory_ops ]; then
   ln -s "$REPO/apps/factory_ops" apps/factory_ops
   uv pip install --quiet -e apps/factory_ops --python env/bin/python
-  grep -qx factory_ops sites/apps.txt || echo factory_ops >> sites/apps.txt
+  # bench writes apps.txt without a trailing newline; add one before appending
+  if ! grep -qx factory_ops sites/apps.txt; then
+    [ -n "$(tail -c1 sites/apps.txt)" ] && echo >> sites/apps.txt
+    echo factory_ops >> sites/apps.txt
+  fi
 fi
 
 for site in factory.localhost test.localhost; do
