@@ -1,7 +1,7 @@
 # Phase 0 plan — Foundation (frontend slice)
 
-> **Paused (2026-11-04):** the client asked to evaluate ERPNext as the base. See
-> `docs/erpnext-assessment.md`. This plan resumes, revised, once that decision is made.
+> **Superseded (2026-11-04):** ERPNext was approved as the core. The React frontend is frozen as a
+> design reference. The current plan is `REVISED_PHASE_1_ROADMAP.md`.
 
 Source: *Mintree Factory OS — Build Prompt v2* (2026-11-05). This file covers the frontend
 half of Phase 0. The backend half (FastAPI, Postgres, Alembic, auth, audit, numbering,

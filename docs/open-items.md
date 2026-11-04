@@ -1,9 +1,19 @@
 # Open items
 
-- Backend half of Phase 0 (see docs/plan.md "Not in this slice").
-- Replace `src/api/sample.ts` with Orval-generated client once the OpenAPI exists.
-- Hindi catalogue reviewed by a native speaker.
-- Confirm brand palette; replace placeholder mint.
-- Decide ERPNext route (docs/erpnext-assessment.md §8) before more build work.
-- `apps/web` is a partial scaffold (tokens, CSS, sample API, formatters); routes and components
-  are not written yet, so it does not build. Re-point its API layer to Frappe REST if ERPNext is adopted.
+## Client decisions / inputs
+- FlowHQ day rate for Phase 1 (decides scope; REVISED_PHASE_1_ROADMAP.md §5).
+- Accountant: CoA, rounding method, row-wise GST rounding, invoice numbering, e-invoice threshold.
+- Lawyer: GPL conveying on client-owned servers; `factory_ops` licence; client contract wording.
+- Provider choice after 1-week VPS trial (E2E Networks vs AWS Lightsail).
+- QC specifications per RM/PM/BULK/FG; master data templates.
+- Marketplace access requests (MARKETPLACE_INTEGRATION_ASSESSMENT.md §4).
+
+## To verify during Phase 1
+- QI-on-Stock-Entry creation sequence on v16 (spike, week 1).
+- Naming-series FY variables for April–March reset in v16.
+- India Compliance invoice numbering and gapless behaviour.
+- Redis 8 licence terms; Valkey as fallback.
+- Amazon connector works with LWA-only credentials (SigV4 deprecated).
+
+## Superseded
+- `apps/web` React scaffold: frozen as design reference; does not build and is not deployed.

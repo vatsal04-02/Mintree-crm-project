@@ -1,5 +1,9 @@
 # Building Mintree Factory OS on ERPNext
 
+> **Superseded (2026-11-04)** by `SYSTEM_ARCHITECTURE.md` and the documents it links. Kept for history.
+> Its "60–70% coverage" figure holds only for production, purchase and accounts; see
+> `ERPNext_STANDARD_FEATURE_MAPPING.md` for the item-by-item result (41% for the whole brief).
+
 Checked against `frappe/erpnext` `develop` at commit `4a0492b` (4 Nov 2026, version `17.0.0-dev`).
 Claims marked **(verified)** were read in that source. Claims marked **(to verify)** come from
 outside it and must be checked against the current docs before we depend on them.

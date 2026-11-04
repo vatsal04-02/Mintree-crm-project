@@ -19,3 +19,13 @@ One line per library added, with why (brief §3).
 - @fontsource/ibm-plex-sans, @fontsource/ibm-plex-mono — self-hosted fonts (no third-party font CDN on a factory network).
 - @biomejs/biome — lint and format.
 - vitest, @testing-library/react, @testing-library/user-event, jsdom, vitest-axe — component and accessibility tests.
+
+## 2026-11-04 — architecture decisions (approved by the client)
+
+- ERPNext v16 is the core ERP on Frappe v16 and MariaDB 11.8; pinned tags, never `develop`.
+- All factory-specific work lives in the custom Frappe app `factory_ops`; no ERPNext core changes.
+- UI: ERPNext Desk for Phase 1; Frappe UI (Vue 3) evaluated for shop-floor pages; `apps/web` (React)
+  frozen as design reference — the React/TanStack/Lingui libraries above are no longer part of the build.
+- Hosting: self-hosted VPS in Mumbai, client-owned account, FlowHQ admin access; dev/staging/prod.
+- Licensing: GPL-3.0 accepted; `factory_ops` released under GPL-3.0 (lawyer to confirm).
+- QC hold is modelled as quarantine warehouses + a QI-gated QC Release (DATABASE_AND_WORKFLOW_DESIGN.md §3).
