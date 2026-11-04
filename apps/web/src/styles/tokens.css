@@ -1,0 +1,133 @@
+/*
+ * Mintree Factory OS — design tokens (brief §4).
+ * Style: "framed sheet". One mint-grey frame (sidebar + 48px top bar, no rule between them)
+ * holds a white work sheet. Colour lives on data, status and the one primary action.
+ * Every component reads these variables; nothing downstream uses a raw colour.
+ */
+
+:root {
+  /* Frame and surfaces: warm neutral greys tinted one low step toward the mint. */
+  --frame: #f2f3ef;
+  --sheet: #ffffff;
+  --raised: #f7f7f4;
+  --active: #e5e7e1;
+  --border: #e4e5e0;
+  --rule: #efefeb;
+  --control: #c9ccc5;
+
+  /* Ink in three tiers, each at 4.5:1 or more on --sheet and --frame. */
+  --text: #161816;
+  --muted: #555a54;
+  --faint: #62675f;
+
+  /* The one brand accent: deep mint (placeholder until the palette is confirmed). */
+  --accent: #1f6f55;
+  --accent-ink: #ffffff;
+  --accent-tint: #e4f1eb;
+  --accent-hover: #185a45;
+  --primary: #1f6f55;
+  --primary-ink: #ffffff;
+
+  /* Status colours carry meaning only. Each status also has a label and an icon.
+     Released uses the accent family so the screen never shows two competing greens. */
+  --released-bg: #e1f0e8;
+  --released-ink: #0e4a36;
+  --hold-bg: #fff3d1;
+  --hold-ink: #6e4300;
+  --hold-mark: #b7791f;
+  --rejected-bg: #fde9e7;
+  --rejected-ink: #8a1c1f;
+  --rejected-mark: #c4242a;
+  --progress-bg: #e6eefa;
+  --progress-ink: #1a3f78;
+  --progress-mark: #2c63b8;
+  --neutral-bg: #eeefeb;
+  --neutral-ink: #3f433e;
+
+  --negative: #b4232a;
+  --positive: #1f6f55;
+
+  /* Charts */
+  --grid: #e7e8e3;
+  --chart-1: #1f6f55;
+  --chart-2: #8b918a;
+
+  /* Shape: flat, 1px borders, 6px radius (brief §4). The sheet is the frame's one larger curve. */
+  --radius-sheet: 10px;
+  --radius: 6px;
+  --radius-chip: 4px;
+
+  /* Type: one sans and its mono. 13px tables, 14px forms, 20px page titles. */
+  --font: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --fs-title: 20px;
+  --fs-section: 15px;
+  --fs-body: 14px;
+  --fs-table: 13px;
+  --fs-small: 12px;
+  --fs-kpi: 22px;
+
+  /* Space on a 4px base. One gutter everywhere. */
+  --gap: 16px;
+  --pad: 24px;
+  --card-pad: 16px;
+  --sidebar: 232px;
+  --topbar: 48px;
+  --control-h: 32px;
+  --row-h: 32px;
+  --nav-row: 32px;
+
+  --shadow-float: 0 8px 24px rgb(20 24 20 / 0.12), 0 1px 3px rgb(20 24 20 / 0.08);
+  --focus: 0 0 0 2px var(--sheet), 0 0 0 4px var(--accent);
+
+  color-scheme: light;
+}
+
+/* Comfortable density for shop-floor tablets: 44px rows and larger targets, set per user. */
+:root[data-density="comfortable"] {
+  --row-h: 44px;
+  --control-h: 44px;
+  --nav-row: 44px;
+  --fs-table: 14px;
+  --fs-body: 15px;
+}
+
+/* Dark mode exists through tokens and is off by default. */
+:root[data-theme="dark"] {
+  --frame: #0f110f;
+  --sheet: #161816;
+  --raised: #1d201d;
+  --active: #262a26;
+  --border: #282c28;
+  --rule: #212421;
+  --control: #444a44;
+  --text: #f2f3ef;
+  --muted: #b3b8b1;
+  --faint: #9aa098;
+  --accent: #4fbf94;
+  --accent-ink: #08130e;
+  --accent-tint: #15291f;
+  --accent-hover: #6fd1aa;
+  --primary: #4fbf94;
+  --primary-ink: #08130e;
+  --released-bg: #15291f;
+  --released-ink: #7fd8b1;
+  --hold-bg: #2b2210;
+  --hold-ink: #f0c66b;
+  --hold-mark: #f0c66b;
+  --rejected-bg: #2e1517;
+  --rejected-ink: #f2918f;
+  --rejected-mark: #f2918f;
+  --progress-bg: #142236;
+  --progress-ink: #9cbcf0;
+  --progress-mark: #9cbcf0;
+  --neutral-bg: #232623;
+  --neutral-ink: #c9cdc7;
+  --negative: #f2918f;
+  --positive: #7fd8b1;
+  --grid: #2a2e2a;
+  --chart-1: #4fbf94;
+  --chart-2: #6c726b;
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
