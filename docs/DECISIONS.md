@@ -29,3 +29,55 @@ One line per library added, with why (brief §3).
 - Hosting: self-hosted VPS in Mumbai, client-owned account, FlowHQ admin access; dev/staging/prod.
 - Licensing: GPL-3.0 accepted; `factory_ops` released under GPL-3.0 (lawyer to confirm).
 - QC hold is modelled as quarantine warehouses + a QI-gated QC Release (DATABASE_AND_WORKFLOW_DESIGN.md §3).
+
+## 2026-11-04 — Phase 1 build decisions (Milestones 1–2)
+
+**D-001 Pins verified.** Frappe `v16.55.2` (3d1284c) and ERPNext `v16.53.0` (9cd11b1) are installed
+from their tags. Frappe v16 requires Python `>=3.14,<3.15` and Node `>=24`; we use CPython 3.14.6 and
+Node 24.22.2. MariaDB 11.8.9 (Docker `mariadb:11.8`, the frappe_docker image). India Compliance and
+ecommerce_integrations are **not installed yet**: India Compliance waits for a real GSTIN; the
+marketplace app is Phase 7.
+
+**D-002 Development topology.** MariaDB and the cache/queue run in Docker with the same server flags
+as frappe_docker's devcontainer (`deploy/dev/compose.yaml`). bench runs on the host as a non-root
+`frappe` user instead of inside the `frappe/bench` container, because this environment's outbound
+proxy is reachable only from the host. Production still uses frappe_docker images (deployment runbook).
+
+**D-003 Test site.** Automated tests run on a separate `test.localhost` site with ERPNext's own test
+bootstrap (`_Test Company`); the development site `factory.localhost` never receives test data.
+
+**D-004 Valkey instead of Redis.** Valkey 8.1 (BSD-3-Clause), a Redis-protocol-compatible fork, is
+used for cache and queue in development and will be in production. This removes the Redis 8
+licence question (RSALv2/SSPLv1/AGPLv3 choice) entirely. Verified: Frappe v16 site, login, Desk and
+the full factory_ops test suite run on Valkey 8.1. Fallback if a problem appears: `redis:7.2`
+(last BSD release) — record it here if used.
+
+**D-005 Setup in code, re-applied on migrate.** Custom fields, roles, warehouse types and custom
+permissions are declared in Python (`factory_ops/setup/`) and applied by `after_install` and
+`after_migrate`, rather than exported fixture JSON. Reason: they are reviewable diffs, idempotent,
+and a fresh site and an upgraded site converge to the same state. Fixtures remain for things edited
+in Desk (workspaces, later workflows).
+
+**D-006 QC lifecycle confirmed by spike; one QI per QC Release.** The spike
+(`tests/test_spike_qi_lifecycle.py`, 8 tests, all pass on v16.53.0) showed a Quality Inspection can
+reference a draft Material Transfer and ERPNext then gates its submission. A QI is bound to exactly
+one Stock Entry, so a partial release and the later rejection of the remainder each need their own
+QI. ERPNext ignores the QI when `inspection_required = 0`, so the reject and conditional paths are
+checked by `factory_ops` itself.
+
+**D-007 Permissions ERPNext v16 does not give by default.**
+- `Batch`: create + read for Stock User and Manufacturing User. Only Item Manager can create a Batch
+  in v16, yet a batch is auto-created on every receipt or production output, so receiving failed
+  without it. No write is granted, so expiry dates stay editable by Item Manager only.
+- `Serial and Batch Bundle`: the same rights Stock User has, for QC Officer and QA Manager. Submitting
+  a QC Release's transfer creates bundles as the session user. A bundle on its own moves no stock.
+- `Batch.fo_qc_status` is at permlevel 1 with read-only access for operational roles, so no user can
+  write the derived status through the API.
+
+**D-008 Segregation scope.** Whoever made the first inward movement of a batch (and, for production,
+the Work Order owner) cannot Release, Partially Release or Conditionally Release it. They *may*
+reject it: rejecting your own receipt reduces risk, it does not create it.
+
+**D-009 A guard flag, not a field, unlocks the release transfer.** The QC Release sets a process-local
+`frappe.flags` value while submitting its own Stock Entry. A client cannot set that through the API;
+setting `fo_qc_release` on a Stock Entry does not unlock anything (test 14).

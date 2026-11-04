@@ -176,6 +176,35 @@ nightly job checks it against the warehouse balances.
 **Returns:** the Sales Return posts to `RETURNS-QC-HOLD`. QC Release decides restock (to
 FG-STORES), rework (to WIP via a rework Work Order) or reject.
 
+### 3.2a Spike result (2026-11-04, ERPNext v16.53.0): the sequence that works
+
+Verified by `apps/factory_ops/factory_ops/tests/test_spike_qi_lifecycle.py` (8 tests, all pass):
+
+1. A draft Material Transfer (`inspection_required = 1`) from hold to destination can be saved.
+2. A Quality Inspection with `reference_type = Stock Entry`, `reference_name` = that draft, the
+   same item and batch can be inserted and submitted. On submit, ERPNext writes the QI onto the
+   matching draft row itself (matched by item and batch).
+3. Submitting the transfer is then refused when the QI is missing, still draft, or Rejected, and
+   allowed when it is submitted and Accepted.
+4. A QI belongs to exactly one Stock Entry. It cannot be reused on a second transfer, and it cannot
+   be cancelled while its transfer is submitted.
+5. With `inspection_required = 0`, ERPNext does not look at the QI at all.
+
+**Changes to the design from the spike:**
+- **One QI per QC Release.** A partial release and the later rejection of the remainder each get
+  their own QI and their own transfer.
+- **Reject and Conditional Release** use `inspection_required = 0`. `factory_ops` checks the QI
+  itself: Rejected and submitted for Reject; submitted plus an approved QC Deviation for
+  Conditional.
+- **Permissions.** Batch create (Stock User, Manufacturing User) and Serial and Batch Bundle rights
+  (QC roles) were missing in v16 defaults (DECISIONS D-007).
+- **The draft transfer is updated in place** while the QC Release is a draft, so the row the QI
+  points to is never replaced.
+
+**As implemented:** QC Release save → draft transfer; "Create Quality Inspection" → QI on that
+draft; QI submit; QC Release submit → roles, batch row lock, qty, segregation, QI, deviation →
+transfer submitted under a process-local flag → batch status recomputed.
+
 ### 3.3 Guards (`factory_ops` `doc_events`, run in `validate` and `before_submit`)
 
 | Guard | Applies to | Rule |

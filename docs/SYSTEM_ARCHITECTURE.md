@@ -1,6 +1,6 @@
 # System architecture: Mintree Factory OS on ERPNext
 
-**Status:** revised architecture, 4 Nov 2026. Supersedes the stack in brief §3, the brief's
+**Status:** revised architecture, 4 Nov 2026. Implementation started; see `IMPLEMENTATION_PROGRESS.md`. Supersedes the stack in brief §3, the brief's
 §5 repo layout, and `docs/erpnext-assessment.md`.
 
 **Approved decisions:**
@@ -23,7 +23,7 @@
 │     ├── ecommerce_integrations version-16 (GPL-3.0)  Shopify, Amazon (Phase 7)  ──▶ marketplaces │
 │     ├── hrms version-16 (GPL-3.0)           optional, Phase 10                                    │
 │     └── factory_ops (GPL-3.0, FlowHQ)       QC quarantine, approvals, R&D, eBMR, channels, AI     │
-│  MariaDB 11.8 · Redis 8.6 (cache, queue)                                                           │
+│  MariaDB 11.8 · Valkey 8.1 (cache, queue; BSD, Redis-compatible)                                                           │
 │  Backups ──encrypted──▶ Indian-region object storage                                              │
 └────────────────────────────────────────────────────────────────────────────────────────────────────┘
 Users: Desk in a browser (office PCs, shop-floor tablets) · later: Frappe UI pages for shop-floor tasks
@@ -39,7 +39,7 @@ Staging VPS: same image, one size smaller; also runs Uptime Kuma and restore dri
 | India Compliance | `version-16` commit `53a39ca` (or newest v16 tag at build time) | requires ERPNext |
 | ecommerce_integrations | `version-16` commit `a984a72` (installed in Phase 7) | requires ERPNext |
 | HRMS | `version-16` (Phase 10, optional) | requires ERPNext |
-| Runtime | Python 3.14, Node 24, MariaDB 11.8, Redis 8.6 | frappe_docker defaults |
+| Runtime | Python 3.14 (3.14.6 verified), Node 24 (24.22.2 verified), MariaDB 11.8 (11.8.9 verified), **Valkey 8.1** instead of Redis 8.6 | Frappe v16 requires Python >=3.14,<3.15 and Node >=24 (verified in source). Valkey: DECISIONS D-004 |
 
 **Update policy:**
 

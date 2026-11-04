@@ -18,7 +18,7 @@ before go-live and before FlowHQ offers `factory_ops` to a second client.
 | Frappe UI (if adopted) | `main` @ cb97437 | **MIT** | Vue 3 component library | Frappe Technologies |
 | MariaDB Server | 11.8 | **GPL-2.0** | Database | MariaDB Foundation/plc |
 | Redis | 8.6 (frappe_docker default image) | Redis 8 is offered under a choice of RSALv2, SSPLv1 or **AGPLv3** (to verify) | Cache and job queue | Redis Ltd |
-| Valkey (alternative) | — | BSD-3-Clause | Redis-compatible drop-in | Linux Foundation |
+| **Valkey (chosen, D-004)** | 8.1 | BSD-3-Clause | Cache and job queue (replaces Redis) | Linux Foundation |
 | Python 3.14, Node 24 | — | PSF, MIT | Runtimes | — |
 | Caddy 2 / Traefik 3 | — | Apache-2.0 / MIT | HTTPS reverse proxy | — |
 | `factory_ops` | ours | **GPL-3.0 (recommended, §3)** | Mintree customisations | FlowHQ |
@@ -101,5 +101,5 @@ for people over a network is not conveying under GPL-3.0. That rule is different
 | Third-party app maintenance | India Compliance (Resilient Tech) and ecommerce_integrations are maintained separately; Amazon connector uses deprecated SigV4 auth | Track their release notes; contract tests for connectors |
 | Runtime versions | v16 images: Python 3.14, Node 24, MariaDB 11.8, Redis 8.6 (frappe_docker) | Use frappe_docker's images rather than a hand-built bench |
 | Postgres | Not used (MariaDB decision) | — |
-| Redis licence change | Redis ≥ 7.4 is no longer BSD (to verify exact terms) | Acceptable unmodified; Valkey is the BSD fallback if the client's policy requires it |
+| Redis licence change | Redis ≥ 7.4 is no longer BSD | **Resolved:** Valkey 8.1 (BSD-3-Clause) is used instead; verified with Frappe v16 in development (DECISIONS D-004) |
 | India Compliance API service | Paid credits; terms can change | Budget line for the client; e-invoice only needed above the turnover threshold (accountant to confirm) |
