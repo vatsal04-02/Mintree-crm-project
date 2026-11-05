@@ -27,7 +27,8 @@ container. Last updated 2026-11-05, end of Milestone 5 (sales, dispatch and acco
 - **Test evidence:** `PHASE_1_TEST_RESULTS.md`.
   - 93 tests pass (77 earlier + 16 production) on the dev bench; 92 passed twice in a row on a clean,
     independent bench before the last one-test fix; a site installed from nothing has the full setup.
-  - CI on GitHub Actions passes on commit e7d23e1 (run 8: 93 tests OK, lint OK).
+  - 114 tests pass (93 earlier + 21 sales) on the dev bench, on the clean independent bench, and in CI
+    (commit 15f07a0: 114 OK, lint OK).
   - HTTP acceptance 16/16 (purchase/QC) and 15/15 (production); browser checks 17/17 (QC) and 14/14
     (production); workers and scheduler verified running jobs.
 - **Not started (by instruction):** R&D, marketplace integrations, AI.

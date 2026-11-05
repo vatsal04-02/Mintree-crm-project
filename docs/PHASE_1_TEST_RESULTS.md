@@ -13,6 +13,7 @@ after migrating: **Ran 93 tests in 143.5 s — OK**.
 
 | Layer | Where | Result |
 | --- | --- | --- |
+| CI, GitHub Actions (commit 15f07a0) | ubuntu-24.04, fresh site | **Ran 114 tests in 133.8 s — OK**; lint OK |
 | Full automated suite | dev bench `test.localhost` | **Ran 114 tests in 222.6 s — OK** (93 earlier + 21 sales) |
 | Full automated suite | clean, independent bench (own MariaDB / Valkey), migrated | **Ran 114 tests in 223.8 s — OK** |
 | HTTP acceptance, sales (`acceptance_sales_http.py`) | dev site, REST, 6 SAMPLE users | **19/19** |
@@ -78,7 +79,8 @@ order shipped and left unpaid on purpose); **stock ledger 108,550.00 = stock acc
 | Browser | order numbers not in the order list; sales cannot see receivable cards | External Order ID in list view; receivables checked as accounts user | UI checks "D2C website orders listed…", "receivables cards hidden from a salesperson", "accounts see receivables on the dashboard" |
 | Re-running Milestone 3 HTTP | DN without Sales Order now refused (SO → DN rule) | script follows SO → DN; shelf-life refusal still after ledger rows | `acceptance_http.py` 16/16 |
 
-CI on GitHub Actions for this milestone: CI_M5_PENDING.
+CI on GitHub Actions, commit 15f07a0: **success — Ran 114 tests in 133.8 s, OK; lint OK**
+(https://github.com/vatsal04-02/Mintree-crm-project/actions/runs/41989052274).
 
 ---
 
