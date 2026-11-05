@@ -20,6 +20,7 @@ const EXPECTED = {
   'sample.sales@sample.invalid': ['Sales and Dispatch', 'Stores and Warehouse'],
   'sample.dispatch@sample.invalid': ['Sales and Dispatch', 'Stores and Warehouse'],
   'sample.accounts@sample.invalid': ['Factory Accounts'],
+  'sample.masterdata@sample.invalid': ['Stores and Warehouse'],
 };
 const slug = (s) => s.toLowerCase().replace(/ /g, '-');
 const results = [];
@@ -54,6 +55,9 @@ const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x))
       check(`${short}: ${ws} opens in its own shell`, url.endsWith(`/desk/${slug(ws)}`) && (sidebarTitle.includes(ws) || body.split('\n').slice(0, 8).join(' ').includes(ws)), `${url} | sidebar "${sidebarTitle.trim().split('\n')[0]}"`);
       const cardErrors = await page.locator('.number-widget-box .widget-content:has-text("Error"), .widget.number-widget-box:has-text("Not permitted")').count();
       check(`${short}: ${ws} cards load without error dialog`, dlg === 0 && cardErrors === 0);
+      // charts fetch their data after the cards; wait so the screenshot shows what users see
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.waitForTimeout(1000);
       await page.screenshot({ path: `${out}/${slug(ws)}--${short}.png` });
     }
     const forbidden = ALL.find((w) => !expected.includes(w));

@@ -269,13 +269,18 @@ check(
     and all(e >= str(TODAY) for e in expiries),
     str(locations),
 )
-check("picking moved no stock", sle_rows(pl["name"]) == [] and ats() == ats0)
+check("picking moved no stock", sle_rows(pl["name"]) == [])
+# Milestone 6 Part A (batch_eligibility): picked-but-unreserved stock is no longer available to sell
+check(
+    "picked stock is no longer available to sell: down by 150",
+    round(ats0 - ats(), 3) == 150,
+)
 ok(
     stores.doc_method("Pick List", pl["name"], "create_stock_reservation_entries"),
     "reserve",
 )
 check(
-    "picked batches reserved: available to sell down by 150",
+    "picked batches reserved: still down by exactly 150 (picked and reserved not counted twice)",
     round(ats0 - ats(), 3) == 150,
 )
 

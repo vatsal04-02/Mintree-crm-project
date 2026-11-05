@@ -83,7 +83,7 @@ CARDS = {
 		"filters": [
 			["docstatus", "=", 1],
 			["purpose", "=", "Manufacture"],
-			["posting_date", "Timespan", "last month"],
+			["posting_date", "Timespan", "last 30 days"],  # "last month" = previous calendar month
 		],
 	},
 	"FO Payables Outstanding": {
@@ -473,6 +473,7 @@ MANAGEMENT_READ = (
 	"QC Release", "QC Deviation", "Quality Inspection", "GL Entry", "Account", "Payment Entry",
 	"Cost Center", "Fiscal Year", "Material Request",
 )  # fmt: skip
+MANAGEMENT_LEVEL1_READ = ("Batch",)
 MANAGEMENT_REPORTS = sorted(
 	{link[2] for card in WORKSPACES["Management"]["links"] for link in card[1] if link[1] == R}
 	| {s[0] for s in WORKSPACES["Management"]["shortcuts"] if s[1] == R}
@@ -514,6 +515,15 @@ def ensure_management_role():
 			update_permission_property(doctype, ROLE_MANAGEMENT, 0, right, 1, validate=False)
 		for right in ("write", "create", "submit", "cancel", "delete", "amend"):
 			update_permission_property(doctype, ROLE_MANAGEMENT, 0, right, 0, validate=False)
+	# permlevel-1 fields its cards filter on (Batch.fo_qc_status for "Batches Awaiting QC"):
+	# read only, like every other level-1 grant (setup/install.py LEVEL1_READ)
+	for doctype in MANAGEMENT_LEVEL1_READ:
+		if not frappe.db.exists(
+			"Custom DocPerm", {"parent": doctype, "role": ROLE_MANAGEMENT, "permlevel": 1}
+		):
+			add_permission(doctype, ROLE_MANAGEMENT, 1)
+		update_permission_property(doctype, ROLE_MANAGEMENT, 1, "read", 1, validate=False)
+		update_permission_property(doctype, ROLE_MANAGEMENT, 1, "write", 0, validate=False)
 	for report in MANAGEMENT_REPORTS:
 		grant_report(report, ROLE_MANAGEMENT)
 
@@ -686,14 +696,19 @@ def _sidebar(name, ws):
 	only during migrate, because a Desktop Icon links to one by name (see ``icon_link``)."""
 	if frappe.db.exists("Sidebar", name) and frappe.db.get_value("Sidebar", name, "module") != name:
 		frappe.delete_doc("Sidebar", name, ignore_permissions=True, force=True)  # was under Factory Ops
+	header = {"title": name, "module": name, "header_icon": ws["icon"], "standard": 0}
+	items = [{"type": "Link", "label": name, "link_type": "Workspace", "link_to": name, "icon": ws["icon"]}]
 	doc = frappe.get_doc("Sidebar", name) if frappe.db.exists("Sidebar", name) else frappe.new_doc("Sidebar")
-	doc.update({"title": name, "module": name, "header_icon": ws["icon"], "standard": 0})
-	doc.set(
-		"items",
-		[{"type": "Link", "label": name, "link_type": "Workspace", "link_to": name, "icon": ws["icon"]}],
-	)
-	doc.flags.ignore_permissions = True
-	doc.save() if not doc.is_new() else doc.insert()
+	if not doc.is_new() and _sidebar_matches(doc, header, items):
+		# Frappe v16 lets an app's Sidebar be saved only in developer mode or during
+		# install/migrate. Setup also runs outside migrate (tests, setup_dev_site), so an
+		# unchanged sidebar is left alone; a changed one is updated by the next migrate.
+		pass
+	else:
+		doc.update(header)
+		doc.set("items", items)
+		doc.flags.ignore_permissions = True
+		doc.save() if not doc.is_new() else doc.insert()
 	archive_name = icon_link(name)
 	if not frappe.db.exists("Workspace Sidebar", archive_name) and (
 		frappe.flags.in_migrate or frappe.flags.in_install
@@ -705,6 +720,16 @@ def _sidebar(name, ws):
 		archive.append("items", {"type": "Link", "label": "Home", "link_type": "Workspace", "link_to": name})
 		archive.flags.ignore_permissions = True
 		archive.insert()
+
+
+def _sidebar_matches(doc, header: dict, items: list[dict]) -> bool:
+	if not all(_same(doc.get(k), v) for k, v in header.items()):
+		return False
+	if len(doc.items) != len(items):
+		return False
+	return all(
+		all(_same(row.get(k), v) for k, v in want.items()) for row, want in zip(doc.items, items, strict=True)
+	)
 
 
 def remove_renamed_workspaces():

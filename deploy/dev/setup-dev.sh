@@ -58,8 +58,12 @@ for site in factory.localhost test.localhost; do
       --admin-password "$(openssl rand -hex 12)" --install-app erpnext
     bench --site "$site" install-app factory_ops
   fi
-  bench --site "$site" set-config developer_mode 1
 done
+# Developer mode only on the development site. The test site runs like CI and production
+# (developer mode off): with it on, Frappe allows edits that a customer site refuses, which hid a
+# real failure (app-owned Sidebars may only be saved in developer mode or during migrate).
+bench --site factory.localhost set-config developer_mode 1
+bench --site test.localhost set-config developer_mode 0
 bench --site test.localhost set-config allow_tests true
 echo "Done. Run tests:  bench --site test.localhost run-tests --app factory_ops"
 echo "Serve:            bench --site factory.localhost serve --port 8000"

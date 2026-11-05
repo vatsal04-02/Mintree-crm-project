@@ -158,6 +158,41 @@ class TestRoleAccess(FactoryOpsTestCase):
 						f"{user}: {ws} / {card.name}",
 					)
 
+	def test_every_card_on_a_workspace_computes_for_its_users(self):
+		"""Regression (found by the browser check after Milestone 6): seeing a card is not enough;
+		its figure is computed with the user's permissions, including field-level (permlevel)
+		ones. Management Viewer could see 'Batches Awaiting QC' but not filter on the permlevel-1
+		Batch.fo_qc_status, so the workspace opened with a Permission Error."""
+		from frappe.desk.doctype.number_card.number_card import get_result
+
+		for user, expected in EXPECTED.items():
+			for ws in expected:
+				for row in frappe.get_doc("Workspace", ws).number_cards:
+					card = frappe.get_doc("Number Card", row.number_card_name)
+					with self.set_user(user):
+						try:
+							if card.type == "Custom":
+								frappe.get_attr(card.method)()
+							else:
+								get_result(card.as_dict(), card.filters_json)
+						except frappe.PermissionError as e:
+							self.fail(f"{user}: {ws} / {card.name}: {e}")
+
+	def test_rolling_window_cards_include_today(self):
+		"""Regression: "Batches Made (30 days)" filtered on Timespan "last month", which Frappe defines
+		as the previous calendar month, so batches made this month were never counted."""
+		from frappe.utils import date_diff, get_timespan_date_range, getdate, nowdate
+
+		for key, card in CARDS.items():
+			for f in card.get("filters", []):
+				if f[1] != "Timespan":
+					continue
+				start, end = get_timespan_date_range(f[2])
+				self.assertLessEqual(getdate(start), getdate(nowdate()), key)
+				self.assertGreaterEqual(getdate(end), getdate(nowdate()), f"{key}: window ends before today")
+				if "30 days" in card["label"]:
+					self.assertEqual(date_diff(end, start), 30, key)
+
 	def test_management_viewer_reads_but_never_changes(self):
 		frappe.set_user(USER_MANAGEMENT)
 		try:

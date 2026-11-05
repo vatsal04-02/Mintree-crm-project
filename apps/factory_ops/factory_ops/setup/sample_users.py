@@ -39,6 +39,13 @@ SAMPLE_USERS = {
 	),
 	"sample.sales@sample.invalid": ("SAMPLE Sales", ["Sales User", "Stock User"], None),
 	"sample.accounts@sample.invalid": ("SAMPLE Accounts", ["Accounts User", "Accounts Manager"], None),
+	# Owns master data: the only SAMPLE user who may import Items, Suppliers, Customers, BOMs,
+	# opening stock and prices (the importer runs with the user's own permissions, D-035).
+	"sample.masterdata@sample.invalid": (
+		"SAMPLE Master Data",
+		["Item Manager", "Purchase Master Manager", "Sales Master Manager", "Stock Manager", "Stock User"],
+		None,
+	),
 }
 
 
