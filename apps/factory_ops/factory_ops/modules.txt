@@ -4,3 +4,4 @@ Inventory
 Purchase
 Production
 Sales Ops
+Research

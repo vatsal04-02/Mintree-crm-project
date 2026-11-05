@@ -41,6 +41,9 @@ SAMPLE_USERS = {
 	"sample.accounts@sample.invalid": ("SAMPLE Accounts", ["Accounts User", "Accounts Manager"], None),
 	# Owns master data: the only SAMPLE user who may import Items, Suppliers, Customers, BOMs,
 	# opening stock and prices (the importer runs with the user's own permissions, D-035).
+	# R&D (MINTREE_RND_MODULE.md): the chemist drafts and records trials; the manager decides
+	"sample.rnd@sample.invalid": ("SAMPLE R&D Chemist", ["R&D Chemist"], None),
+	"sample.rndmanager@sample.invalid": ("SAMPLE R&D Manager", ["R&D Manager"], None),
 	"sample.masterdata@sample.invalid": (
 		"SAMPLE Master Data",
 		["Item Manager", "Purchase Master Manager", "Sales Master Manager", "Stock Manager", "Stock User"],

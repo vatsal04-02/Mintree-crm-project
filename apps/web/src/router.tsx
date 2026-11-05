@@ -17,6 +17,7 @@ import * as inv from "./modules/inventory";
 import * as proc from "./modules/procurement";
 import * as prod from "./modules/production";
 import * as qc from "./modules/quality";
+import * as rnd from "./modules/research";
 import * as sales from "./modules/sales";
 
 type Ctx = { queryClient: QueryClient };
@@ -106,6 +107,19 @@ const routeTree = root.addChildren([
     page("/accounts/payments/$name", acc.PaymentPage),
     page("/accounts/receivables", acc.Receivables),
     page("/accounts/payables", acc.Payables),
+    page("/research/formulations", rnd.FormulationList),
+    page("/research/formulations/new", rnd.FormulationForm),
+    page("/research/formulations/$name", rnd.FormulationPage),
+    page("/research/formulations/$name/edit", rnd.FormulationForm),
+    page("/research/projects", rnd.ProjectList),
+    page("/research/projects/new", rnd.ProjectNew),
+    page("/research/projects/$name", rnd.ProjectPage),
+    page("/research/trials", rnd.TrialList),
+    page("/research/trials/new", rnd.TrialNew),
+    page("/research/trials/$name", rnd.TrialPage),
+    page("/research/stability", rnd.StabilityList),
+    page("/research/stability/new", rnd.StabilityNew),
+    page("/research/stability/$name", rnd.StabilityPage),
     page("/integrations", admin.IntegrationCentre),
     page("/planned", admin.PlannedModules),
   ]),

@@ -48,6 +48,17 @@ const TONES: Record<string, Tone> = {
   Closed: "neutral",
   "On Hold": "hold",
   Return: "neutral",
+  // R&D
+  "Under Review": "hold",
+  Trial: "progress",
+  Approved: "released",
+  Archived: "neutral",
+  Pass: "released",
+  Fail: "rejected",
+  Inconclusive: "hold",
+  Proposed: "neutral",
+  "In Progress": "progress",
+  Planned: "neutral",
 };
 
 export function toneOf(status: string): Tone {

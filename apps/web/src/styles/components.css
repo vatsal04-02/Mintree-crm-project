@@ -825,3 +825,13 @@ textarea {
 .empty-state-needs li {
   list-style: decimal;
 }
+
+/* Inline figure state: a total that meets its target, or one that does not yet */
+.text-ok {
+  color: var(--positive);
+  font-weight: 500;
+}
+.text-hold {
+  color: var(--hold-ink);
+  font-weight: 500;
+}

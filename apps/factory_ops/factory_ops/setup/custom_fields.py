@@ -1,6 +1,25 @@
 """Custom fields added to standard ERPNext DocTypes. All names start with ``fo_``."""
 
 CUSTOM_FIELDS = {
+	# R&D (MINTREE_RND_MODULE.md): ingredient master data on the raw-material Item, and the
+	# approved formulation version a BOM was made from.
+	"BOM": [
+		{
+			"fieldname": "fo_formulation",
+			"fieldtype": "Link",
+			"label": "From formulation",
+			"options": "Formulation",
+			"read_only": 1,
+			"insert_after": "item",
+		},
+		{
+			"fieldname": "fo_formulation_version",
+			"fieldtype": "Int",
+			"label": "Formulation version",
+			"read_only": 1,
+			"insert_after": "fo_formulation",
+		},
+	],
 	"Item Group": [
 		{
 			"fieldname": "fo_section",
@@ -69,6 +88,32 @@ CUSTOM_FIELDS = {
 		},
 	],
 	"Item": [
+		{
+			"fieldname": "fo_ingredient_section",
+			"fieldtype": "Section Break",
+			"label": "Ingredient (R&D)",
+			"collapsible": 1,
+			"insert_after": "over_billing_allowance",  # Details tab (after "description" lands in Accounting)
+		},
+		{
+			"fieldname": "fo_ingredient_category",
+			"fieldtype": "Link",
+			"label": "Ingredient category",
+			"options": "Ingredient Category",
+			"insert_after": "fo_ingredient_section",
+		},
+		{
+			"fieldname": "fo_inci_name",
+			"fieldtype": "Data",
+			"label": "INCI name",
+			"insert_after": "fo_ingredient_category",
+		},
+		{
+			"fieldname": "fo_ingredient_spec",
+			"fieldtype": "Small Text",
+			"label": "Ingredient specification",
+			"insert_after": "fo_inci_name",
+		},
 		{
 			"fieldname": "fo_coa_required",
 			"label": "Supplier COA Required",

@@ -19,6 +19,8 @@ DOCTYPES = (
 	"Stock Entry", "Warehouse", "Work Order", "BOM", "QC Release", "Quality Inspection",
 	"QC Deviation", "QC Retest", "Sales Order", "Pick List", "Delivery Note", "Packing Slip",
 	"Sales Invoice", "Payment Entry", "Customer", "Purchase Invoice", "Journal Entry",
+	# R&D
+	"Formulation", "Research Project", "Formulation Trial", "Stability Study", "Ingredient Category",
 )
 REPORTS = (
 	"Stock by QC Status", "QC Queue", "Available to Sell", "Dispatch Register",

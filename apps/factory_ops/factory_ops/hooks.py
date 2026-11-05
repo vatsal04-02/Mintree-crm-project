@@ -102,7 +102,10 @@ doc_events = {
 		"before_submit": [f"{_prod}.validate_two_stage", f"{_guard}.validate_work_order"],
 	},
 	"BOM": {
-		"validate": f"{_prod}.validate_bom",
+		"validate": [
+			f"{_prod}.validate_bom",
+			"factory_ops.research.doctype.formulation.formulation.validate_bom_formulation",
+		],
 	},
 	"Stock Entry Type": {
 		"validate": f"{_prod}.validate_stock_entry_type",
