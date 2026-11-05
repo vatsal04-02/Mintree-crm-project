@@ -7,3 +7,7 @@ coverage
 __pycache__/
 *.pyc
 *.egg-info/
+# website extraction: raw response cache and downloaded product images stay local (brand-owned content)
+data/mintree_website_extraction/.cache/
+data/mintree_website_extraction/images/
+data/mintree_website_extraction/extraction.log

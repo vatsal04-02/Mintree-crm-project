@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- INVENTED test fixture -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://shop.example.test/</loc></url>
+  <url><loc>https://shop.example.test/products/test-body-lotion</loc></url>
+  <url><loc>https://shop.example.test/products/test-body-lotion</loc></url>
+  <url><loc>https://shop.example.test/products/broken-page</loc></url>
+  <url><loc>https://shop.example.test/products/gone</loc></url>
+  <url><loc>https://shop.example.test/products/private-item</loc></url>
+</urlset>

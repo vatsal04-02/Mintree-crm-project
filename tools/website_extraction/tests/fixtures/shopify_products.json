@@ -1,0 +1,31 @@
+{
+  "_note": "INVENTED test fixture in Shopify products.json shape. Not Mintree data.",
+  "pages": [
+    [
+      {"id": 1, "title": "Test Face Wash", "handle": "test-face-wash", "product_type": "Face Wash", "vendor": "Test Brand",
+       "tags": ["face", "gel"], "body_html": "<p>A <b>test</b> face wash.</p><ul><li>For tests</li></ul>",
+       "options": [{"name": "Size"}],
+       "variants": [
+         {"id": 101, "title": "100 ml", "option1": "100 ml", "sku": "TFW-100", "barcode": "", "price": "299.00", "compare_at_price": "349.00", "available": true, "grams": 120},
+         {"id": 102, "title": "200 ml", "option1": "200 ml", "sku": "TFW-200", "barcode": "", "price": "499.00", "compare_at_price": "599.00", "available": false, "grams": 230}
+       ],
+       "images": [
+         {"id": 11, "position": 1, "src": "https://cdn.example.test/wash-front.jpg", "alt": "front", "variant_ids": [101]},
+         {"id": 12, "position": 2, "src": "https://cdn.example.test/wash-back.jpg", "alt": null, "variant_ids": []}
+       ]},
+      {"id": 2, "title": "Test Hair Oil 50ml", "handle": "test-hair-oil", "product_type": "Hair Oil", "vendor": "Test Brand",
+       "tags": [], "body_html": "", "options": [{"name": "Title"}],
+       "variants": [{"id": 201, "title": "Default Title", "option1": "Default Title", "sku": "", "barcode": null, "price": "199", "compare_at_price": null, "available": true, "grams": 60}],
+       "images": []}
+    ],
+    [
+      {"id": 3, "title": "Test Gift Set - Pack of 3", "handle": "test-gift-set", "product_type": "Gift Set", "vendor": "Test Brand",
+       "tags": "gift, combo", "body_html": "<p>Three products.</p>", "options": [{"name": "Title"}],
+       "variants": [{"id": 301, "title": "Default Title", "option1": "Default Title", "sku": "TGS-3", "barcode": "", "price": "999.00", "compare_at_price": "1197.00", "available": true, "grams": 500}],
+       "images": [{"id": 31, "position": 1, "src": "https://cdn.example.test/gift.jpg", "alt": "", "variant_ids": []}]},
+      {"id": 1, "title": "Test Face Wash", "handle": "test-face-wash", "product_type": "Face Wash", "variants": [], "images": []}
+    ]
+  ],
+  "collections": [{"id": 900, "handle": "face-care", "title": "Face Care"}, {"id": 901, "handle": "gifts", "title": "Gifts"}],
+  "collection_members": {"face-care": ["test-face-wash"], "gifts": ["test-gift-set"]}
+}
