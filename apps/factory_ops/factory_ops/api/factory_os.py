@@ -23,6 +23,9 @@ DOCTYPES = (
 	"Formulation", "Research Project", "Formulation Trial", "Stability Study", "Ingredient Category",
 	# Maintenance (ERPNext asset DocTypes)
 	"Asset", "Asset Maintenance", "Asset Maintenance Log", "Asset Repair", "Asset Maintenance Team", "Bin",
+	# Marketplaces
+	"Marketplace Channel", "Marketplace Listing", "Marketplace Order", "Marketplace Sync Log",
+	"Marketplace Return", "Marketplace Settlement",
 )
 REPORTS = (
 	"Stock by QC Status", "QC Queue", "Available to Sell", "Dispatch Register",

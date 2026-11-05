@@ -48,6 +48,8 @@ SAMPLE_USERS = {
 	# breakdown can issue its spare parts from stock
 	"sample.maintenance@sample.invalid": ("SAMPLE Maintenance Technician", ["Maintenance User", "Stock User"], None),
 	"sample.maintmanager@sample.invalid": ("SAMPLE Maintenance Manager", ["Maintenance Manager", "Maintenance User", "Stock User"], None),
+	# Marketplaces (MINTREE_ECOMMERCE_MODULE.md): Sales User so a marketplace order becomes a sales order
+	"sample.marketplace@sample.invalid": ("SAMPLE Marketplace Manager", ["Marketplace Manager", "Marketplace User", "Sales User"], None),
 	"sample.masterdata@sample.invalid": (
 		"SAMPLE Master Data",
 		["Item Manager", "Purchase Master Manager", "Sales Master Manager", "Stock Manager", "Stock User"],

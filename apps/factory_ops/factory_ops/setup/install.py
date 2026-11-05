@@ -37,6 +37,9 @@ def apply_setup():
 
 	ensure_workspaces()
 	ensure_single_defaults("Factory Ops Settings")
+	from factory_ops.marketplace.setup import ensure_marketplace_channels
+
+	ensure_marketplace_channels()
 	frappe.clear_cache()
 
 

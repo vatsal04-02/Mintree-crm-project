@@ -141,6 +141,12 @@ scheduler_events = {
 		"factory_ops.quality.batch_status.nightly_consistency_check",
 		"factory_ops.sales_ops.shelf_life.segregate_undispatchable_stock",
 	],
+	# Marketplaces: retry rate-limited calls after their back-off; push inventory to Connected,
+	# sync-enabled channels only (none is Connected until a live API test succeeds)
+	"hourly": [
+		"factory_ops.marketplace.service.retry_due_operations",
+		"factory_ops.marketplace.service.push_inventory_for_connected_channels",
+	],
 }
 
 # Exported configuration that is edited in Desk and then version-controlled.

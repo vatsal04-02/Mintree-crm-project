@@ -293,6 +293,90 @@ try {
     check("maintenance overview loads from records", (await mgr.page.locator(".kpi").count()) >= 5);
     for (const c of [mgr, tech, stores]) check(`no JavaScript errors (${c.user})`, c.page.errors.length === 0, c.page.errors.join("; "));
   }
+  if (SECTIONS.has("marketplace")) {
+    /* ============ Marketplaces: honest channel state, listing, allocation, order once, sales order ============ */
+    const FG = "SAMPLE-FG-0001";
+    const mk = await as("sample.marketplace@sample.invalid");
+    for (const [ch, share] of [["Amazon", 40], ["Flipkart", 30]]) {
+      await go(mk, `/marketplace/channels/${ch}`);
+      await mk.page.getByRole("spinbutton", { name: /^Stock share/ }).fill(String(share));
+      await link(mk.page, "Customer for orders", "SAMPLE D2C - Website Orders");
+      await click(mk.page, "Save settings");
+      await waitFor(async () => (await mk.doc("Marketplace Channel", ch)).allocation_percent === share, `${ch} share`);
+    }
+    let amazon = await mk.doc("Marketplace Channel", "Amazon");
+    check("channel settings saved in React; Amazon stays Not configured (no credentials)", amazon.connection_state === "Not configured" && amazon.allocation_percent === 40);
+    await go(mk, "/marketplace/channels/Amazon");
+    await click(mk.page, "Test connection");
+    await mk.page.getByText(/^Skipped:/).waitFor();
+    amazon = await mk.doc("Marketplace Channel", "Amazon");
+    check("connection test is refused and logged, never shown as connected", amazon.connection_state !== "Connected", amazon.connection_state);
+    const myntra = await mk.doc("Marketplace Channel", "Myntra");
+    check("Myntra shows Access required", myntra.connection_state === "Access required");
+
+    const skus = {};
+    for (const ch of ["Amazon", "Flipkart"]) {
+      const existing = await mk.list("Marketplace Listing", { channel: ch, item_code: FG }, ["marketplace_sku"]);
+      if (existing.length) { skus[ch] = existing[0].marketplace_sku; continue; }
+      await go(mk, "/marketplace/listings/new");
+      await select(mk.page, "Channel", ch);
+      await link(mk.page, "ERPNext item", FG);
+      skus[ch] = `${ch.slice(0, 3).toUpperCase()}-E2E-${RUN}`;
+      await textField(mk.page, "Marketplace SKU", skus[ch]);
+      await click(mk.page, "Save listing");
+      await mk.page.waitForURL(/\/marketplace\/listings$/);
+    }
+    const listings = await mk.list("Marketplace Listing", { item_code: FG }, ["channel"]);
+    check("one ERPNext item listed on two channels (no duplicate item)", listings.filter((l) => ["Amazon", "Flipkart"].includes(l.channel)).length === 2);
+
+    await go(mk, "/marketplace/inventory");
+    await mk.page.getByRole("table", { name: "Inventory to publish" }).waitFor();
+    const alloc = await mk.page.evaluate(async () => (await (await fetch("/api/method/factory_ops.api.marketplace.inventory_allocation?company=SAMPLE%20Mintree%20Manufacturing")).json()).message);
+    const row = alloc.find((r) => r.item_code === FG);
+    const by = Object.fromEntries(row.channels.map((c) => [c.channel, c.publish_qty]));
+    check(
+      "published quantities = available to sell × share, never more than available in total",
+      by.Amazon === Math.floor(row.available_to_sell * 0.4) && by.Flipkart === Math.floor(row.available_to_sell * 0.3) && row.published_total <= row.available_to_sell,
+      `ATS ${row.available_to_sell}: Amazon ${by.Amazon}, Flipkart ${by.Flipkart}`,
+    );
+
+    const ext = `408-E2E-${RUN}`;
+    await go(mk, "/marketplace/orders/new");
+    await select(mk.page, "Channel", "Amazon");
+    await textField(mk.page, "Marketplace order ID", ext);
+    await mk.page.getByLabel(/^Ordered at/).fill(new Date().toISOString().slice(0, 16));
+    await textField(mk.page, "Marketplace SKU", skus.Amazon);
+    await numberField(mk.page, "Qty", 2);
+    await numberField(mk.page, "Rate", 249);
+    await click(mk.page, "Record order");
+    const mo = await docName(mk.page, "/marketplace/orders");
+    let order = await mk.doc("Marketplace Order", mo);
+    check("marketplace order recorded; SKU mapped to the ERPNext item", order.items[0].item_code === FG && order.order_total === 498, mo);
+
+    await go(mk, "/marketplace/orders/new");
+    await select(mk.page, "Channel", "Amazon");
+    await textField(mk.page, "Marketplace order ID", ext);
+    await mk.page.getByLabel(/^Ordered at/).fill(new Date().toISOString().slice(0, 16));
+    await textField(mk.page, "Marketplace SKU", skus.Amazon);
+    await click(mk.page, "Record order");
+    const dupMsg = await refusal(mk.page);
+    check("the same Amazon order ID is refused the second time", /already recorded/.test(dupMsg), dupMsg.split("\n")[0]);
+
+    await go(mk, `/marketplace/orders/${mo}`);
+    await click(mk.page, "Create sales order");
+    order = await waitFor(async () => {
+      const d = await mk.doc("Marketplace Order", mo);
+      return d.sales_order && d;
+    }, "sales order");
+    const so = await mk.doc("Sales Order", order.sales_order);
+    check("marketplace order becomes an ERPNext sales order (D2C Marketplace, external ID kept)", so.fo_sales_channel === "D2C Marketplace" && so.fo_external_order_id === `Amazon/${ext}`, so.name);
+
+    await go(mk, "/marketplace");
+    await mk.page.getByRole("table", { name: "Channels" }).waitFor();
+    await shot(mk, "marketplace-overview");
+    check("overview lists the four channels", (await mk.page.getByRole("table", { name: "Channels" }).getByRole("row").count()) === 5);
+    check("no JavaScript errors (marketplace)", mk.page.errors.length === 0, mk.page.errors.join("; "));
+  }
 } catch (e) {
   results.push({ name: "run completed", ok: false });
   console.error(`FAIL run stopped: ${String(e).split("\n")[0]}`);
