@@ -120,6 +120,41 @@ QC_DOCPERMS = (
 	("Data Import", "Sales Manager", ("read", "write", "create")),
 )
 
+# Maintenance on ERPNext's asset DocTypes, for ERPNext's own Maintenance Manager / User roles
+# (MINTREE_MAINTENANCE_MODULE.md). ERPNext grants these DocTypes to Manufacturing and Quality roles
+# only. A technician reports and works breakdowns and completes scheduled maintenance; the
+# manager also plans schedules and approves breakdown closure (submit).
+MAINT_DOCPERMS = (
+	("Asset", "Maintenance User", ("read", "report")),
+	("Asset", "Maintenance Manager", ("read", "write", "create", "submit", "report")),
+	# submitting an Asset makes its first Asset Movement (placement at its location) as the user
+	("Asset Movement", "Maintenance Manager", ("read", "write", "create", "submit")),
+	("Asset Movement", "Maintenance User", ("read",)),
+	("Asset Category", "Maintenance Manager", ("read", "create", "write")),
+	("Asset Category", "Maintenance User", ("read",)),
+	("Location", "Maintenance Manager", ("read", "create", "write")),
+	("Location", "Maintenance User", ("read",)),
+	# completing a task (submitting its log) makes ERPNext save the schedule's last-done and next-due
+	# dates with the technician's rights
+	("Asset Maintenance", "Maintenance User", ("read", "write", "report")),
+	("Asset Maintenance", "Maintenance Manager", ("read", "write", "create", "report")),
+	("Asset Maintenance Team", "Maintenance User", ("read",)),
+	("Asset Maintenance Team", "Maintenance Manager", ("read", "write", "create")),
+	# ... and insert the task's next occurrence
+	("Asset Maintenance Log", "Maintenance User", ("read", "write", "create", "submit", "report")),
+	("Asset Maintenance Log", "Maintenance Manager", ("read", "write", "create", "submit", "cancel", "report")),
+	("Asset Repair", "Maintenance User", ("read", "write", "create", "report")),
+	("Asset Repair", "Maintenance Manager", ("read", "write", "create", "submit", "cancel", "report")),
+	("Item", "Maintenance User", ("read",)),
+	("Item", "Maintenance Manager", ("read",)),
+	("Company", "Maintenance User", ("read",)),
+	("Company", "Maintenance Manager", ("read",)),
+	("Warehouse", "Maintenance User", ("read",)),
+	("Warehouse", "Maintenance Manager", ("read",)),
+	("Bin", "Maintenance User", ("read",)),
+	("Bin", "Maintenance Manager", ("read",)),
+)
+
 # Read access to permlevel-1 fields (Batch.fo_qc_status). Nobody is given write at
 # level 1, so the derived QC status can only be set by server code.
 LEVEL1_READ = (
@@ -141,6 +176,12 @@ def _ensure_perm_row(doctype: str, role: str, permlevel: int) -> None:
 def grant_qc_permissions():
 	for doctype, role, rights in QC_DOCPERMS:
 		if not frappe.db.exists("DocType", doctype):
+			continue
+		_ensure_perm_row(doctype, role, 0)
+		for right in rights:
+			update_permission_property(doctype, role, 0, right, 1, validate=False)
+	for doctype, role, rights in MAINT_DOCPERMS:
+		if not frappe.db.exists("DocType", doctype) or not frappe.db.exists("Role", role):
 			continue
 		_ensure_perm_row(doctype, role, 0)
 		for right in rights:

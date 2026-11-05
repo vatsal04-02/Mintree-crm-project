@@ -43,7 +43,8 @@ function score(target: string, path: string, search: string): number {
   const [p, q] = target.split("?");
   if (q) return path === p && search.includes(q) ? 3 : 0;
   if (path === p) return 2;
-  return p !== "/" && path.startsWith(`${p}/`) && !path.endsWith("/new") ? 1 : 0;
+  // a deeper section wins over its parent (/maintenance/breakdowns/X is Breakdowns, not /maintenance)
+  return p !== "/" && path.startsWith(`${p}/`) && !path.endsWith("/new") ? 1 + (p ?? "").length / 1000 : 0;
 }
 
 /** The one item in a module panel that represents where the user is. */

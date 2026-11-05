@@ -1,6 +1,56 @@
 """Custom fields added to standard ERPNext DocTypes. All names start with ``fo_``."""
 
 CUSTOM_FIELDS = {
+	# Maintenance (MINTREE_MAINTENANCE_MODULE.md): equipment details and operating status on ERPNext's
+	# Asset; breakdown details and closure approval on ERPNext's Asset Repair.
+	"Asset": [
+		{"fieldname": "fo_equipment_section", "fieldtype": "Section Break", "label": "Equipment", "insert_after": "maintenance_required"},
+		{
+			"fieldname": "fo_equipment_type", "allow_on_submit": 1,
+			"fieldtype": "Select",
+			"label": "Equipment type",
+			"options": "\nMachine\nProduction Line\nFilling Machine\nPackaging Equipment\nWeighing Equipment\nLaboratory Equipment\nUtility\nOther",
+			"in_standard_filter": 1,
+			"insert_after": "fo_equipment_section",
+		},
+		{
+			"fieldname": "fo_operational_status", "allow_on_submit": 1,
+			"fieldtype": "Select",
+			"label": "Operating status",
+			"options": "Active\nUnder Maintenance\nBreakdown\nIdle\nRetired",
+			"default": "Active",
+			"in_standard_filter": 1,
+			"in_list_view": 1,
+			"insert_after": "fo_equipment_type",
+		},
+		{"fieldname": "fo_manufacturer", "allow_on_submit": 1, "fieldtype": "Data", "label": "Manufacturer", "insert_after": "fo_operational_status"},
+		{"fieldname": "fo_model", "allow_on_submit": 1, "fieldtype": "Data", "label": "Model", "insert_after": "fo_manufacturer"},
+		{"fieldname": "fo_equipment_cb", "fieldtype": "Column Break", "insert_after": "fo_model"},
+		{"fieldname": "fo_serial_no", "allow_on_submit": 1, "fieldtype": "Data", "label": "Serial number", "insert_after": "fo_equipment_cb"},
+		{"fieldname": "fo_installation_date", "allow_on_submit": 1, "fieldtype": "Date", "label": "Installation date", "insert_after": "fo_serial_no"},
+		{"fieldname": "fo_warranty_until", "allow_on_submit": 1, "fieldtype": "Date", "label": "Warranty until", "insert_after": "fo_installation_date"},
+		{"fieldname": "fo_warranty_details", "allow_on_submit": 1, "fieldtype": "Small Text", "label": "Warranty details", "insert_after": "fo_warranty_until"},
+		{"fieldname": "fo_is_demo", "fieldtype": "Check", "label": "Synthetic demo record (DEMO - NOT REAL)", "read_only": 1, "insert_after": "fo_warranty_details"},
+	],
+	"Asset Repair": [
+		{"fieldname": "fo_breakdown_section", "fieldtype": "Section Break", "label": "Breakdown", "insert_after": "description"},
+		{
+			"fieldname": "fo_severity",
+			"fieldtype": "Select",
+			"label": "Severity",
+			"options": "\nLow\nMedium\nHigh\nCritical",
+			"in_list_view": 1,
+			"in_standard_filter": 1,
+			"insert_after": "fo_breakdown_section",
+		},
+		{"fieldname": "fo_reported_by", "fieldtype": "Link", "label": "Reported by", "options": "User", "insert_after": "fo_severity"},
+		{"fieldname": "fo_technician", "fieldtype": "Link", "label": "Assigned technician", "options": "User", "insert_after": "fo_reported_by"},
+		{"fieldname": "fo_breakdown_cb", "fieldtype": "Column Break", "insert_after": "fo_technician"},
+		{"fieldname": "fo_downtime_hours", "fieldtype": "Float", "label": "Downtime (hours)", "read_only": 1, "precision": "2", "insert_after": "fo_breakdown_cb"},
+		{"fieldname": "fo_root_cause", "fieldtype": "Small Text", "label": "Root cause", "insert_after": "fo_downtime_hours"},
+		{"fieldname": "fo_closure_approved_by", "fieldtype": "Link", "label": "Closure approved by", "options": "User", "read_only": 1, "insert_after": "fo_root_cause"},
+		{"fieldname": "fo_closure_approved_on", "fieldtype": "Datetime", "label": "Closure approved on", "read_only": 1, "insert_after": "fo_closure_approved_by"},
+	],
 	# R&D (MINTREE_RND_MODULE.md): ingredient master data on the raw-material Item, and the
 	# approved formulation version a BOM was made from.
 	"BOM": [

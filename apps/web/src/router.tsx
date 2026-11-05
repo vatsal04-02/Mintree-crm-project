@@ -14,6 +14,7 @@ import * as acc from "./modules/accounts";
 import * as admin from "./modules/admin";
 import { CommandCenter, Login } from "./modules/home";
 import * as inv from "./modules/inventory";
+import * as mnt from "./modules/maintenance";
 import * as proc from "./modules/procurement";
 import * as prod from "./modules/production";
 import * as qc from "./modules/quality";
@@ -120,6 +121,19 @@ const routeTree = root.addChildren([
     page("/research/stability", rnd.StabilityList),
     page("/research/stability/new", rnd.StabilityNew),
     page("/research/stability/$name", rnd.StabilityPage),
+    page("/maintenance", mnt.MaintenanceDashboard),
+    page("/maintenance/assets", mnt.AssetList),
+    page("/maintenance/assets/new", mnt.AssetNew),
+    page("/maintenance/assets/$name", mnt.AssetPage),
+    page("/maintenance/breakdowns", mnt.BreakdownList),
+    page("/maintenance/breakdowns/new", mnt.BreakdownNew),
+    page("/maintenance/breakdowns/$name", mnt.BreakdownPage),
+    page("/maintenance/schedules", mnt.ScheduleList),
+    page("/maintenance/schedules/new", mnt.ScheduleNew),
+    page("/maintenance/schedules/$name", mnt.SchedulePage),
+    page("/maintenance/tasks", mnt.TaskList),
+    page("/maintenance/tasks/$name", mnt.TaskPage),
+    page("/maintenance/spares", mnt.SparesPage),
     page("/integrations", admin.IntegrationCentre),
     page("/planned", admin.PlannedModules),
   ]),

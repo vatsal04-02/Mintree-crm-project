@@ -70,7 +70,9 @@ async function link(page, name, value, nth = 0) {
   const box = page.getByRole("combobox", { name: new RegExp(`^${name}`) }).nth(nth);
   await box.click();
   await box.fill(value);
-  const opt = page.getByRole("option").filter({ hasText: value }).first();
+  // match from the start of the option text ("Stores - SMM" must not pick "BULK-STORES - SMM")
+  const esc = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const opt = page.getByRole("option").filter({ hasText: new RegExp(`^\\s*${esc}`) }).first();
   await opt.waitFor({ timeout: 10_000 });
   await opt.click();
 }
@@ -193,6 +195,103 @@ try {
     const v2doc = await chemist.doc("Formulation", v2);
     check("a new version is a Draft linked to the approved one", v2doc.version === 2 && v2doc.previous_version === frm && v2doc.status === "Draft", v2);
     for (const c of [chemist, manager, production]) check(`no JavaScript errors (${c.user})`, c.page.errors.length === 0, c.page.errors.join("; "));
+  }
+  if (SECTIONS.has("maintenance")) {
+    /* ============ Maintenance: register -> schedule -> breakdown -> repair with spares -> closure ============ */
+    const SPARE = "SAMPLE-SPARE-VBELT";
+    const SPARE_WH = "Stores - SMM";
+    const md = await as("sample.masterdata@sample.invalid");
+    if (!(await md.list("Item", { name: SPARE })).length) {
+      const r = await md.insert({ doctype: "Item", item_code: SPARE, item_name: "SAMPLE V-belt (spare part)", item_group: "Spare Parts", stock_uom: "Nos", is_stock_item: 1, valuation_rate: 250 });
+      check("master data user creates a spare part", r.status === 200, SPARE);
+    }
+    await md.ctx.close();
+    const stores = await as("sample.stores@sample.invalid");
+    const rec = await stores.insert({ doctype: "Stock Entry", purpose: "Material Receipt", stock_entry_type: "Material Receipt", company: "SAMPLE Mintree Manufacturing", docstatus: 1,
+      items: [{ item_code: SPARE, qty: 5, t_warehouse: SPARE_WH, basic_rate: 250 }] });
+    check("stores receives 5 spare belts into stock", rec.status === 200, rec.body?.data?.name);
+    const binQty = async (s) => Number((await s.list("Bin", { item_code: SPARE, warehouse: SPARE_WH }, ["actual_qty"]))[0]?.actual_qty ?? 0);
+    const before = await binQty(stores);
+
+    const mgr = await as("sample.maintmanager@sample.invalid");
+    await go(mgr, "/maintenance/assets/new");
+    await textField(mgr.page, "Name", `E2E capping machine ${RUN}`);
+    await select(mgr.page, "Type", "Filling Machine");
+    await textField(mgr.page, "Manufacturer", "E2E Machines");
+    await textField(mgr.page, "Serial number", `SN-${RUN}`);
+    await numberField(mgr.page, "Purchase value", 250000);
+    await click(mgr.page, "Register equipment");
+    const asset = await docName(mgr.page, "/maintenance/assets");
+    let a = await mgr.doc("Asset", asset);
+    check("maintenance manager registers equipment in React (submitted ERPNext Asset)", a.docstatus === 1 && a.fo_equipment_type === "Filling Machine" && a.fo_operational_status === "Active", asset);
+
+    const team = "SAMPLE Maintenance Team";
+    if (!(await mgr.list("Asset Maintenance Team", { name: team })).length) {
+      const r = await mgr.insert({ doctype: "Asset Maintenance Team", maintenance_team_name: team, company: "SAMPLE Mintree Manufacturing", maintenance_manager: "sample.maintmanager@sample.invalid",
+        maintenance_team_members: [{ team_member: "sample.maintenance@sample.invalid", maintenance_role: "Maintenance User" }] });
+      check("maintenance team set up", r.status === 200);
+    }
+    await go(mgr, "/maintenance/schedules/new");
+    await link(mgr.page, "Equipment", asset);
+    await link(mgr.page, "Maintenance team", team);
+    await textField(mgr.page, "Task", "Lubricate cam track");
+    await link(mgr.page, "Assign to", "sample.maintenance@sample.invalid");
+    await click(mgr.page, "Save schedule");
+    const sched = await docName(mgr.page, "/maintenance/schedules");
+    const logs = await waitFor(async () => {
+      const l = await mgr.list("Asset Maintenance Log", { asset_maintenance: sched }, ["name", "due_date", "maintenance_status"]);
+      return l.length && l;
+    }, "maintenance log");
+    check("preventive schedule creates its first task with a due date", logs[0].due_date && logs[0].maintenance_status === "Planned", `${sched} → ${logs[0].name} due ${logs[0].due_date}`);
+
+    const tech = await as("sample.maintenance@sample.invalid");
+    await go(tech, `/maintenance/assets/${asset}`);
+    await click(tech.page, "Report breakdown");
+    await tech.page.waitForURL(/breakdowns\/new/);
+    await select(tech.page, "Severity", "Critical");
+    await tech.page.getByRole("textbox", { name: /^What happened/ }).fill("Capping head jammed (e2e)");
+    await click(tech.page, "Report breakdown");
+    const bd = await docName(tech.page, "/maintenance/breakdowns");
+    a = await tech.doc("Asset", asset);
+    check("technician reports a breakdown; the equipment shows Breakdown", a.fo_operational_status === "Breakdown", bd);
+
+    await tech.page.getByRole("textbox", { name: /^Resolution/ }).fill("Cleared jam, replaced drive belt");
+    await tech.page.getByRole("textbox", { name: /^Root cause/ }).fill("Worn drive belt slipped");
+    await click(tech.page, "Add spare part");
+    await link(tech.page, "Spare part", SPARE);
+    await link(tech.page, "From warehouse", SPARE_WH);
+    await numberField(tech.page, "Qty", 1);
+    await click(tech.page, "Mark repaired");
+    const rep = await waitFor(async () => {
+      const d = await tech.doc("Asset Repair", bd);
+      return d.repair_status === "Completed" && d;
+    }, "repaired");
+    check("technician records the repair with root cause and a spare part", rep.fo_root_cause && rep.stock_items.length === 1 && rep.fo_downtime_hours >= 0);
+    check("technician is not offered closure approval", (await tech.page.getByRole("button", { name: "Approve closure" }).count()) === 0);
+
+    await go(mgr, `/maintenance/breakdowns/${bd}`);
+    await click(mgr.page, "Approve closure");
+    const closed = await waitFor(async () => {
+      const d = await mgr.doc("Asset Repair", bd);
+      return d.docstatus === 1 && d;
+    }, "closure");
+    check("manager approves the closure (submitted, approver recorded)", closed.fo_closure_approved_by === "sample.maintmanager@sample.invalid");
+    check("the spare belt left stock through ERPNext", before - (await binQty(stores)) === 1, `${before} → ${await binQty(stores)}`);
+    check("spare-part cost carried on the breakdown", Number(closed.consumed_items_cost) === 250, String(closed.consumed_items_cost));
+    a = await mgr.doc("Asset", asset);
+    check("equipment back to Active after closure", a.fo_operational_status === "Active");
+
+    await go(tech, `/maintenance/tasks/${logs[0].name}`);
+    await tech.page.getByRole("textbox", { name: /^Work done/ }).fill("Cam track cleaned and greased (e2e)");
+    await click(tech.page, "Complete task");
+    await waitFor(async () => (await tech.doc("Asset Maintenance Log", logs[0].name)).docstatus === 1, "task done");
+    check("technician completes the preventive task", true, logs[0].name);
+
+    await go(mgr, "/maintenance");
+    await mgr.page.getByText("Downtime and maintenance cost").waitFor();
+    await shot(mgr, "maintenance-overview");
+    check("maintenance overview loads from records", (await mgr.page.locator(".kpi").count()) >= 5);
+    for (const c of [mgr, tech, stores]) check(`no JavaScript errors (${c.user})`, c.page.errors.length === 0, c.page.errors.join("; "));
   }
 } catch (e) {
   results.push({ name: "run completed", ok: false });

@@ -220,6 +220,9 @@ def setup_company_masters(company: str) -> dict:
 	ensure_wastage_reasons()
 	ensure_wastage_account(company)
 	ensure_boms(company)
+	from factory_ops.maintenance.setup import ensure_maintenance_masters
+
+	ensure_maintenance_masters(company)
 	return warehouses
 
 

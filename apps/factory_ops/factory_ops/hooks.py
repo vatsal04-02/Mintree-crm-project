@@ -101,6 +101,18 @@ doc_events = {
 		],
 		"before_submit": [f"{_prod}.validate_two_stage", f"{_guard}.validate_work_order"],
 	},
+	"Asset Maintenance": {
+		"before_validate": "factory_ops.maintenance.controls.set_next_due_dates",
+	},
+	"Asset Repair": {
+		"before_validate": "factory_ops.maintenance.controls.fill_spare_rates",
+		"validate": "factory_ops.maintenance.controls.validate_repair",
+		"before_submit": "factory_ops.maintenance.controls.before_submit_repair",
+		"after_insert": "factory_ops.maintenance.controls.after_repair_change",
+		"on_update": "factory_ops.maintenance.controls.after_repair_change",
+		"on_submit": "factory_ops.maintenance.controls.after_repair_change",
+		"on_cancel": "factory_ops.maintenance.controls.after_repair_change",
+	},
 	"BOM": {
 		"validate": [
 			f"{_prod}.validate_bom",

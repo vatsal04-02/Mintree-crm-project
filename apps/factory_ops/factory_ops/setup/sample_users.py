@@ -44,6 +44,10 @@ SAMPLE_USERS = {
 	# R&D (MINTREE_RND_MODULE.md): the chemist drafts and records trials; the manager decides
 	"sample.rnd@sample.invalid": ("SAMPLE R&D Chemist", ["R&D Chemist"], None),
 	"sample.rndmanager@sample.invalid": ("SAMPLE R&D Manager", ["R&D Manager"], None),
+	# Maintenance on ERPNext's Asset DocTypes (MINTREE_MAINTENANCE_MODULE.md); Stock User so a closed
+	# breakdown can issue its spare parts from stock
+	"sample.maintenance@sample.invalid": ("SAMPLE Maintenance Technician", ["Maintenance User", "Stock User"], None),
+	"sample.maintmanager@sample.invalid": ("SAMPLE Maintenance Manager", ["Maintenance Manager", "Maintenance User", "Stock User"], None),
 	"sample.masterdata@sample.invalid": (
 		"SAMPLE Master Data",
 		["Item Manager", "Purchase Master Manager", "Sales Master Manager", "Stock Manager", "Stock User"],

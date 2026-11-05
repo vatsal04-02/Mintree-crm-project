@@ -21,6 +21,8 @@ DOCTYPES = (
 	"Sales Invoice", "Payment Entry", "Customer", "Purchase Invoice", "Journal Entry",
 	# R&D
 	"Formulation", "Research Project", "Formulation Trial", "Stability Study", "Ingredient Category",
+	# Maintenance (ERPNext asset DocTypes)
+	"Asset", "Asset Maintenance", "Asset Maintenance Log", "Asset Repair", "Asset Maintenance Team", "Bin",
 )
 REPORTS = (
 	"Stock by QC Status", "QC Queue", "Available to Sell", "Dispatch Register",

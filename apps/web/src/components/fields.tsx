@@ -111,6 +111,29 @@ export function DateField({
   );
 }
 
+/** Date and time; the value is Frappe's "YYYY-MM-DD HH:mm:ss" (the input shows local time). */
+export function DateTimeField({
+  value,
+  onChange,
+  ...base
+}: Base & { value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  return (
+    <FieldShell id={id} {...base}>
+      <div className="input-wrap">
+        <input
+          id={id}
+          type="datetime-local"
+          value={value ? value.replace(" ", "T").slice(0, 16) : ""}
+          required={base.required}
+          disabled={base.disabled}
+          onChange={(e) => onChange(e.target.value ? `${e.target.value.replace("T", " ")}:00` : "")}
+        />
+      </div>
+    </FieldShell>
+  );
+}
+
 export function SelectField({
   value,
   onChange,

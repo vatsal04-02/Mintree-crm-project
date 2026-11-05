@@ -835,3 +835,67 @@ textarea {
   color: var(--hold-ink);
   font-weight: 500;
 }
+
+/* ---------- KPI strip: one bordered row of counts from records (no cards, no hero numbers) ---------- */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  margin-bottom: var(--gap);
+}
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-right: 1px solid var(--rule);
+}
+.kpi:last-child {
+  border-right: 0;
+}
+.kpi-label {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.kpi-value {
+  font-size: var(--fs-kpi);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.kpi-sub {
+  color: var(--faint);
+  font-size: var(--fs-small);
+}
+.align-start {
+  align-items: start;
+}
+.sub-title {
+  margin: 16px 0 8px;
+  font-size: var(--fs-section);
+  font-weight: 600;
+}
+
+/* ---------- Inline bar: a value drawn against the column's maximum, value printed beside it ---------- */
+.bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+}
+.bar {
+  display: inline-block;
+  height: 8px;
+  min-width: 1px;
+  border-radius: 2px;
+  background: var(--chart-1);
+  max-width: 70%;
+}
+.bar-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
