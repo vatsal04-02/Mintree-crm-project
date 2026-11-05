@@ -74,3 +74,6 @@ RELEASE_MAP = {
 SALES_CHANNEL_B2B = "B2B"
 D2C_CHANNELS = ("D2C Website", "D2C Marketplace", "D2C Other")
 SALES_CHANNELS = (SALES_CHANNEL_B2B, *D2C_CHANNELS)
+
+# ERPNext Quality Inspection type per factory item group (QC configuration, Milestone 6)
+INSPECTION_TYPE_BY_GROUP = {"RM": "Incoming", "PM": "Incoming", "BULK": "In Process", "FG": "Outgoing"}

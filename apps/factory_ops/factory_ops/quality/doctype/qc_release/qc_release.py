@@ -336,10 +336,17 @@ class QCRelease(Document):
 
 
 @frappe.whitelist()
-def create_quality_inspection(qc_release: str, inspection_type: str = "Incoming") -> str:
-	"""Create a draft Quality Inspection against the QC Release's draft Stock Entry."""
+def create_quality_inspection(qc_release: str, inspection_type: str | None = None) -> str:
+	"""Create a draft Quality Inspection against the QC Release's draft Stock Entry. Without an
+	explicit type: Incoming for RM / PM, In Process for BULK, Outgoing for FG (by item group)."""
 	doc = frappe.get_doc("QC Release", qc_release)
 	doc.check_permission("write")
+	if not inspection_type:
+		from factory_ops.constants import INSPECTION_TYPE_BY_GROUP
+		from factory_ops.master_data.importer import _factory_group
+
+		group = _factory_group(frappe.get_cached_value("Item", doc.item_code, "item_group"))
+		inspection_type = INSPECTION_TYPE_BY_GROUP.get(group, "Incoming")
 	if doc.docstatus != 0:
 		frappe.throw(_("QC Release {0} is already decided.").format(doc.name))
 	if not doc.stock_entry:

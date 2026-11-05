@@ -41,6 +41,55 @@ CUSTOMERS = {
 }
 SELLING_PRICES = {"SAMPLE-FG-0001": 250}  # Standard Selling, INR per unit (SAMPLE)
 
+# Quality masters (Milestone 6). SAMPLE parameters and limits only: the real specifications are
+# client input (OPEN_ISSUES). Template per factory group; SAMPLE items get their group's template.
+QI_PARAMETERS = (
+	"SAMPLE Appearance",
+	"SAMPLE Identification (IR)",
+	"SAMPLE Assay (%)",
+	"SAMPLE pH",
+	"SAMPLE Viscosity (cP)",
+	"SAMPLE Fill volume (mL)",
+	"SAMPLE Print and artwork",
+	"SAMPLE Microbial count (cfu/g)",
+)
+# template: [(parameter, numeric, min, max, text specification)]
+QI_TEMPLATES = {
+	"SAMPLE RM Incoming": [
+		("SAMPLE Appearance", 0, None, None, "Conforms to the supplier COA"),
+		("SAMPLE Identification (IR)", 0, None, None, "Matches the reference spectrum"),
+		("SAMPLE Assay (%)", 1, 98.0, 102.0, None),
+	],
+	"SAMPLE PM Incoming": [
+		("SAMPLE Appearance", 0, None, None, "No defects"),
+		("SAMPLE Print and artwork", 0, None, None, "Matches the approved artwork"),
+	],
+	"SAMPLE BULK In Process": [
+		("SAMPLE Appearance", 0, None, None, "Clear, colourless gel"),
+		("SAMPLE pH", 1, 5.0, 6.5, None),
+		("SAMPLE Viscosity (cP)", 1, 3000.0, 6000.0, None),
+		("SAMPLE Microbial count (cfu/g)", 1, 0.0, 100.0, None),
+	],
+	"SAMPLE FG Outgoing": [
+		("SAMPLE Appearance", 0, None, None, "Correct pack, label and batch print"),
+		("SAMPLE Fill volume (mL)", 1, 29.5, 31.0, None),
+		("SAMPLE pH", 1, 5.0, 6.5, None),
+	],
+}
+QI_TEMPLATE_BY_GROUP = {
+	"RM": "SAMPLE RM Incoming",
+	"PM": "SAMPLE PM Incoming",
+	"BULK": "SAMPLE BULK In Process",
+	"FG": "SAMPLE FG Outgoing",
+}
+BRANDS = ("SAMPLE Brand",)
+# Workstations and operations for later routing (Phase 4); not attached to the SAMPLE BOMs.
+WORKSTATIONS = ("SAMPLE Mixing Vessel 500 L", "SAMPLE Filling Line 1")
+OPERATIONS = {
+	"SAMPLE Mixing": "SAMPLE Mixing Vessel 500 L",
+	"SAMPLE Filling and Packing": "SAMPLE Filling Line 1",
+}
+
 # code: (name, group, stock uom, has_expiry_date, shelf life days)
 ITEMS = {
 	"SAMPLE-RM-0001": ("SAMPLE Niacinamide", "RM", "Kg", 1, 730),
@@ -166,6 +215,8 @@ def setup_company_masters(company: str) -> dict:
 	ensure_customers(company)
 	ensure_items()
 	ensure_selling_prices()
+	ensure_quality_masters()
+	ensure_manufacturing_masters()
 	ensure_wastage_reasons()
 	ensure_wastage_account(company)
 	ensure_boms(company)
@@ -269,6 +320,44 @@ def ensure_customers(company: str | None = None):
 			changed = True
 		if changed:
 			doc.save(ignore_permissions=True)
+
+
+def ensure_quality_masters():
+	"""SAMPLE inspection parameters and templates; each SAMPLE item gets its group's template."""
+	for param in QI_PARAMETERS:
+		if not frappe.db.exists("Quality Inspection Parameter", param):
+			frappe.get_doc({"doctype": "Quality Inspection Parameter", "parameter": param}).insert(
+				ignore_permissions=True
+			)
+	for name, params in QI_TEMPLATES.items():
+		if frappe.db.exists("Quality Inspection Template", name):
+			continue
+		tpl = frappe.get_doc(
+			{"doctype": "Quality Inspection Template", "quality_inspection_template_name": name}
+		)
+		for param, numeric, lo, hi, text in params:
+			tpl.append(
+				"item_quality_inspection_parameter",
+				{"specification": param, "numeric": numeric, "min_value": lo, "max_value": hi, "value": text},
+			)
+		tpl.insert(ignore_permissions=True)
+	for code, (_name, group, *_rest) in ITEMS.items():
+		if not frappe.db.get_value("Item", code, "quality_inspection_template"):
+			frappe.db.set_value("Item", code, "quality_inspection_template", QI_TEMPLATE_BY_GROUP[group])
+	for brand in BRANDS:
+		if not frappe.db.exists("Brand", brand):
+			frappe.get_doc({"doctype": "Brand", "brand": brand}).insert(ignore_permissions=True)
+
+
+def ensure_manufacturing_masters():
+	for ws in WORKSTATIONS:
+		if not frappe.db.exists("Workstation", ws):
+			frappe.get_doc({"doctype": "Workstation", "workstation_name": ws}).insert(ignore_permissions=True)
+	for op, ws in OPERATIONS.items():
+		if not frappe.db.exists("Operation", op):
+			frappe.get_doc({"doctype": "Operation", "name": op, "workstation": ws}).insert(
+				ignore_permissions=True
+			)
 
 
 def ensure_selling_prices():
