@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { type Doc, deskUrl, type Filters, getDoc, getList, type Row, runReport } from "@/api/frappe";
 import { can, useSession } from "@/api/session";
+import { emptyForList } from "@/lib/empty";
 import { routeFor } from "@/nav";
 import { type Column, DataTable } from "./DataTable";
 import { DateField, LinkField, NumberField, SelectField, TextField } from "./fields";
@@ -19,7 +20,7 @@ export function useDoc<T extends Doc = Doc>(doctype: string, name: string) {
 
 export function useList<T = Row>(
   doctype: string,
-  args: { fields: string[]; filters?: Filters; orderBy?: string; limit?: number },
+  args: { fields: string[]; filters?: Filters; orFilters?: Filters; orderBy?: string; limit?: number },
   enabled = true,
 ) {
   return useQuery({
@@ -90,6 +91,24 @@ export function ActionButton({
 
 export type ListTab = { label: string; filters: Filters };
 
+const PAGE = 50;
+
+/** Where search looks by default: the document number and the party / item it is about. */
+const SEARCH_FIELDS: Record<string, string[]> = {
+  "Material Request": ["name"],
+  "Purchase Order": ["name", "supplier", "supplier_name"],
+  "Purchase Receipt": ["name", "supplier", "supplier_name"],
+  "Stock Entry": ["name", "stock_entry_type", "work_order"],
+  "Work Order": ["name", "production_item", "item_name"],
+  "QC Release": ["name", "item_code", "batch_no"],
+  "QC Deviation": ["name", "item_code", "batch_no"],
+  "Sales Order": ["name", "customer", "customer_name", "fo_external_order_id"],
+  "Pick List": ["name", "customer"],
+  "Delivery Note": ["name", "customer", "customer_name", "lr_no"],
+  "Sales Invoice": ["name", "customer", "customer_name"],
+  "Payment Entry": ["name", "party", "party_name", "reference_no"],
+};
+
 export function ListPage<T extends Row>({
   title,
   crumbs,
@@ -103,6 +122,7 @@ export function ListPage<T extends Row>({
   orderBy,
   note,
   start,
+  searchFields,
 }: {
   title: string;
   crumbs: Crumb[];
@@ -117,6 +137,8 @@ export function ListPage<T extends Row>({
   note?: ReactNode;
   /** a document of this list is made from another one: pick the source first */
   start?: StartFrom;
+  /** fields the search box looks in (server side, "contains") */
+  searchFields?: string[];
 }) {
   const boot = useSession();
   const navigate = useNavigate();
@@ -129,7 +151,32 @@ export function ListPage<T extends Row>({
   }, [startRequested]);
   const [tab, setTab] = useState(0);
   const current = tabs[tab] ?? tabs[0];
-  const list = useList<T>(doctype, { fields, filters: current?.filters, orderBy, limit: 100 });
+  const [query, setQuery] = useState("");
+  const [q, setQ] = useState("");
+  const [limit, setLimit] = useState(PAGE);
+  useEffect(() => {
+    const t = setTimeout(() => setQ(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new tab or search starts from the first page
+  useEffect(() => setLimit(PAGE), [tab, q]);
+  const list = useList<T>(doctype, {
+    fields,
+    filters: current?.filters,
+    orFilters: q
+      ? (searchFields ?? SEARCH_FIELDS[doctype] ?? ["name"]).map((f) => [f, "like", `%${q}%`])
+      : undefined,
+    orderBy,
+    limit: limit + 1, // one extra row tells whether there is more
+  });
+  const rows = list.data?.slice(0, limit);
+  const allTab = tabs.findIndex((t) =>
+    Array.isArray(t.filters) ? t.filters.length === 0 : Object.keys(t.filters ?? {}).length === 0,
+  );
+  const more = (list.data?.length ?? 0) > limit;
+  const filtered = Array.isArray(current?.filters)
+    ? current.filters.length > 0
+    : Object.keys(current?.filters ?? {}).length > 0;
   return (
     <div className="page">
       <PageHeader
@@ -167,21 +214,53 @@ export function ListPage<T extends Row>({
             {t.label}
           </button>
         ))}
-        <span className="tab-meta">
-          {list.data ? `${list.data.length}${list.data.length === 100 ? "+" : ""} shown, newest first` : ""}
-        </span>
+        <span className="tab-meta">{rows ? `${rows.length}${more ? "+" : ""} shown, newest first` : ""}</span>
+        <div className="input-wrap tab-search">
+          <input
+            type="search"
+            aria-label={`Search ${title.toLowerCase()}`}
+            placeholder="Search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       </div>
       <ErrorNote error={list.error} />
       <div className="panel">
         <DataTable<T>
           label={title}
           columns={columns}
-          rows={list.data}
+          rows={rows}
           loading={list.isLoading}
           rowKey={(r) => String(r.name)}
           onRowClick={(r) => navigate({ to: detail(r) })}
-          empty={`No ${title.toLowerCase()} in “${current?.label}”.`}
+          empty={{
+            ...emptyForList(doctype, title, current?.label ?? "", filtered, q),
+            buttons: [
+              ...(q ? [{ label: "Clear search", onClick: () => setQuery("") }] : []),
+              ...(filtered && allTab >= 0 && allTab !== tab
+                ? [
+                    {
+                      label: `Show ${(tabs[allTab]?.label ?? "all").toLowerCase()}`,
+                      onClick: () => setTab(allTab),
+                    },
+                  ]
+                : []),
+            ],
+          }}
         />
+        {more && (
+          <div className="table-more">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setLimit((l) => l + PAGE)}
+              disabled={list.isFetching}
+            >
+              Show {PAGE} more
+            </button>
+          </div>
+        )}
       </div>
       {start && (
         <SourcePicker

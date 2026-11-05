@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { deskUrl, FrappeError } from "@/api/frappe";
+import { useSession } from "@/api/session";
+import { allPages } from "@/nav";
 
 /* ---------- Status chips: colour + icon + label, never colour alone ---------- */
 
@@ -171,6 +173,57 @@ export function Note({ children, tone = "info" }: { children: ReactNode; tone?: 
 
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
+}
+
+export type EmptyAction = { label: string; to: string; primary?: boolean };
+export type EmptyProps = {
+  title: string;
+  /** why there is nothing here */
+  reason?: ReactNode;
+  /** what has to exist first, in order */
+  needs?: ReactNode[];
+  /** where to go next; only links to pages that exist */
+  actions?: EmptyAction[];
+  /** in-page actions, e.g. switch to the unfiltered tab */
+  buttons?: { label: string; onClick: () => void }[];
+};
+
+/** Takes the place of an empty table: says why it is empty and what to do next. */
+export function EmptyState({ title, reason, needs, actions: offered, buttons }: EmptyProps) {
+  const boot = useSession();
+  // offer only pages this user can open (the same permission test as the navigation)
+  const pages = new Set(allPages(boot).map((p) => p.to.split("?")[0]));
+  const actions = offered?.filter((a) => pages.has(a.to.split("?")[0]));
+  return (
+    <section className="empty-state" aria-label={title}>
+      <div className="empty-state-body">
+        <h2 className="empty-state-title">{title}</h2>
+        {reason && <p className="empty-state-reason">{reason}</p>}
+        {needs && needs.length > 0 && (
+          <ol className="empty-state-needs">
+            {needs.map((n, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: static list
+              <li key={i}>{n}</li>
+            ))}
+          </ol>
+        )}
+      </div>
+      {((actions && actions.length > 0) || (buttons && buttons.length > 0)) && (
+        <div className="empty-state-actions">
+          {buttons?.map((b) => (
+            <button key={b.label} type="button" className="btn" onClick={b.onClick}>
+              {b.label}
+            </button>
+          ))}
+          {actions?.map((a) => (
+            <Link key={a.to} to={a.to} className={a.primary ? "btn btn-primary" : "btn"}>
+              {a.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function Spinner({ label = "Loading" }: { label?: string }) {

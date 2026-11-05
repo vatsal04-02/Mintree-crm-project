@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-import { Empty } from "./ui";
+import { Empty, type EmptyProps, EmptyState } from "./ui";
 
 export type Column<T> = {
   key: string;
@@ -24,7 +24,8 @@ export function DataTable<T extends Record<string, unknown>>({
   columns: Column<T>[];
   rows: T[] | undefined;
   loading?: boolean;
-  empty?: ReactNode;
+  /** text, or a full empty state that replaces the table */
+  empty?: ReactNode | EmptyProps;
   onRowClick?: (row: T) => void;
   rowKey: (row: T) => string;
   label: string;
@@ -41,6 +42,8 @@ export function DataTable<T extends Record<string, unknown>>({
       return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
     });
   }, [rows, sort, columns]);
+
+  if (!loading && sorted.length === 0 && isEmptyProps(empty)) return <EmptyState {...empty} />;
 
   return (
     <div className="table-wrap">
@@ -113,7 +116,11 @@ export function DataTable<T extends Record<string, unknown>>({
             ))}
         </tbody>
       </table>
-      {!loading && sorted.length === 0 && <Empty>{empty}</Empty>}
+      {!loading && sorted.length === 0 && <Empty>{empty as ReactNode}</Empty>}
     </div>
   );
+}
+
+function isEmptyProps(v: unknown): v is EmptyProps {
+  return typeof v === "object" && v !== null && "title" in v && !("$$typeof" in v);
 }

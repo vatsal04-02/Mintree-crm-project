@@ -1,10 +1,11 @@
 import { type ReactNode, useMemo, useState } from "react";
 import type { ReportColumn, Row } from "@/api/frappe";
 import { useSession } from "@/api/session";
+import { emptyForReport } from "@/lib/empty";
 import { formatDate, formatDateTime, formatMoney, formatQty } from "@/lib/format";
 import { type Column, DataTable } from "./DataTable";
 import { useReport } from "./doc";
-import { type Crumb, ErrorNote, PageHeader, StatusChip } from "./ui";
+import { type Crumb, type EmptyProps, ErrorNote, PageHeader, StatusChip } from "./ui";
 
 const STATUS_FIELDS = /status|eligibility/i;
 /** document numbers and codes read better in mono; names of places and parties do not */
@@ -65,6 +66,7 @@ export function ReportView({
   controls,
   rowFilter,
   note,
+  empty,
 }: {
   report: string;
   filters: Row;
@@ -75,6 +77,8 @@ export function ReportView({
   controls?: ReactNode;
   rowFilter?: (r: Row) => boolean;
   note?: ReactNode;
+  /** overrides the standard explanation shown when the report has no rows */
+  empty?: EmptyProps;
 }) {
   const boot = useSession();
   const { data, error, isLoading, dataUpdatedAt } = useReport(report, filters);
@@ -144,7 +148,7 @@ export function ReportView({
             loading={isLoading}
             rowKey={(r) => JSON.stringify(r)}
             onRowClick={onRowClick}
-            empty="The report returned no rows for these filters."
+            empty={q ? emptyForReport(report, q) : (empty ?? emptyForReport(report, ""))}
           />
         </div>
       )}

@@ -766,3 +766,62 @@ textarea {
     grid-row: 1;
   }
 }
+
+/* ---------- Empty state: replaces an empty table; reason, prerequisites, next step ---------- */
+.empty-state {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap);
+  padding: 16px var(--card-pad);
+  border-left: 3px solid var(--accent);
+  background: var(--raised);
+}
+.empty-state-body {
+  max-width: 72ch;
+}
+.empty-state-title {
+  margin: 0 0 4px;
+  font-size: var(--fs-section);
+  font-weight: 600;
+}
+.empty-state-reason {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.empty-state-needs {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .empty-state {
+    flex-direction: column;
+  }
+}
+
+/* ---------- List search and paging ---------- */
+.tab-search {
+  width: 220px;
+  margin: 0 0 6px 8px;
+  flex-shrink: 0;
+}
+.table-more {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  border-top: 1px solid var(--rule);
+}
+.empty-state-needs li {
+  list-style: decimal;
+}
