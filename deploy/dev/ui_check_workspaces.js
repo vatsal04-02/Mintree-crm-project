@@ -7,7 +7,8 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const creds = JSON.parse(fs.readFileSync(process.argv[2]));
 const out = process.argv[3];
-const BASE = 'http://factory.localhost:8000';
+const BASE = process.env.UI_BASE || 'http://factory.localhost:8000'; // e.g. http://demo.localhost:8001
+const HOSTNAME = new URL(BASE).hostname;
 const ALL = ['Management', 'Procurement', 'Stores and Warehouse', 'Production Floor', 'Quality Control', 'Sales and Dispatch', 'Factory Accounts'];
 const EXPECTED = {
   'sample.management@sample.invalid': ['Management'],
@@ -31,7 +32,7 @@ const check = (name, ok, detail = '') => {
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 
 (async () => {
-  const browser = await chromium.launch({ args: ['--host-resolver-rules=MAP factory.localhost 127.0.0.1', '--no-proxy-server'] });
+  const browser = await chromium.launch({ args: [`--host-resolver-rules=MAP ${HOSTNAME} 127.0.0.1`, '--no-proxy-server'] });
   const jsErrors = [];
   for (const [user, expected] of Object.entries(EXPECTED)) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });

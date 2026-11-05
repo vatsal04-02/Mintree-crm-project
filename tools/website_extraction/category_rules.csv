@@ -1,0 +1,7 @@
+item_group,pattern
+Refills,\brefill
+Gift Sets / Combos,\b(gift|combo|kit|hamper|bundle)\b|\b(pack|set) of \d
+Salon Products,\b(salon|professional|pro range|parlou?r)\b
+Hair Care,\b(hair|shampoo|conditioner|scalp)\b
+Bath & Body,\b(body|soap|bath|shower|hand ?wash|foot|feet|deodorant)\b
+Skin Care,\b(face|facial|skin|serum|toner|moisturi[sz]er|cream|sunscreen|spf|lip|scrub|mask|cleanser|gel|night|day)\b

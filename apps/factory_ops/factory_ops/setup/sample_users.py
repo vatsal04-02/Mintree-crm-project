@@ -50,8 +50,9 @@ SAMPLE_USERS = {
 
 
 def create_sample_users() -> str:
-	if not frappe.conf.get("developer_mode"):
-		frappe.throw("Sample users are for development sites only (developer_mode is off).")
+	# development sites, or a local demo site marked by deploy/demo/reset-demo.sh; never a real site
+	if not (frappe.conf.get("developer_mode") or frappe.conf.get("fo_demo_site")):
+		frappe.throw("Sample users are for development and demo sites only (developer_mode is off).")
 	credentials = {}
 	for email, (first_name, roles, limit) in SAMPLE_USERS.items():
 		if not frappe.db.exists("User", email):
