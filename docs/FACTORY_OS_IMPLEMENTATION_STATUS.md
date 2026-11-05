@@ -22,7 +22,7 @@ ready; nothing has been deployed to staging or production.
 | Type check (`tsc -b`), lint (`biome check`) | clean (3 style warnings in CSS, no errors) |
 | End-to-end browser run `apps/web/e2e/run.mjs`, nine SAMPLE role users, against the Frappe-served build at `/factory` | 36 / 36 pass (run MW3L74HP) |
 | Backend: new `tests/test_factory_os_api.py` | 3 / 3 pass |
-| Backend: full `factory_ops` suite on the dev bench | see the commit message of the front-end commit / HANDOFF_NOTES |
+| Backend: full `factory_ops` suite on the dev bench (`test.localhost`) | 155 / 155 pass (152 earlier + 3 new) |
 | Impeccable design detector on `apps/web/src` | 0 findings |
 
 What the end-to-end run proves: each step is a click in the React app, and each outcome is read
