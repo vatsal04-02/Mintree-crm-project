@@ -771,9 +771,22 @@ def _slug(text: str) -> str:
 	return "".join(ch for ch in text.lower() if ch.isalnum())[:12]
 
 
+def _same(old, new) -> bool:
+	"""Field equality that treats None, "" and 0 as Frappe stores them."""
+	if old in (None, "") and new in (None, ""):
+		return True
+	if isinstance(new, (int, float)) and not isinstance(new, bool):
+		return str(old) == str(new) or (old in (None, "", 0) and new == 0)
+	return old == new
+
+
 def _upsert(doctype, name, values):
 	if frappe.db.exists(doctype, name):
 		doc = frappe.get_doc(doctype, name)
+		if all(_same(doc.get(k), v) for k, v in values.items()):
+			# unchanged: do not save, so re-running setup does not touch `modified` (and, in
+			# developer mode, does not re-export a standard document into the app folder)
+			return
 		doc.update(values)
 		doc.flags.ignore_permissions = True
 		doc.save()
