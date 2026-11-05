@@ -56,7 +56,7 @@ doc_events = {
 		"before_submit": f"{_guard}.validate_purchase_receipt",
 	},
 	"Delivery Note": {
-		"before_validate": f"{_sales}.inherit_sales_channel",
+		"before_validate": [f"{_sales}.inherit_sales_channel", f"{_sales}.assign_eligible_batches"],
 		"validate": [
 			f"{_guard}.validate_outward_sales_doc",
 			f"{_sales}.validate_reserved_batches_dispatchable",
@@ -75,8 +75,9 @@ doc_events = {
 	"Pick List": {
 		"before_validate": f"{_guard}.default_pick_list_warehouse",
 		"validate": f"{_guard}.validate_pick_list",
-		# ERPNext computes locations in before_save, after validate, so check again there
-		"before_save": f"{_guard}.validate_pick_list",
+		# ERPNext computes locations in before_save, after validate: replace ineligible suggestions
+		# with eligible batches (D-034), then check again
+		"before_save": [f"{_sales}.reallocate_pick_list", f"{_guard}.validate_pick_list"],
 		"before_submit": f"{_guard}.validate_pick_list",
 	},
 	"Sales Order": {

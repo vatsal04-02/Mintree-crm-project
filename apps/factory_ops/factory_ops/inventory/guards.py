@@ -213,8 +213,10 @@ def validate_shelf_life(doc, method=None):
 		return
 	if doc.doctype == "Sales Invoice" and not cint(doc.get("update_stock")):
 		return
-	min_days = cint(frappe.db.get_single_value("Factory Ops Settings", "min_shelf_life_days_for_dispatch"))
-	posting = getdate(doc.get("posting_date"))
+	from factory_ops.inventory.batch_eligibility import check_batch, min_shelf_life_days
+
+	min_days = min_shelf_life_days()
+	posting = getdate(doc.get("posting_date"))  # Pick Lists have no posting date: today
 	rows = doc.get("items") if doc.doctype != "Pick List" else doc.get("locations")
 	submitted_batches: dict[str, list[str]] = {}
 	if cint(doc.docstatus) == 1 and doc.doctype != "Pick List":
@@ -232,12 +234,11 @@ def validate_shelf_life(doc, method=None):
 	for row in rows or []:
 		for batch in dict.fromkeys(get_row_batches(row) + submitted_batches.get(row.name, [])):
 			expiry = frappe.db.get_value("Batch", batch, "expiry_date")
-			if not expiry:
-				continue
-			remaining = date_diff(expiry, posting)
-			if remaining < 0:
+			result = check_batch(expiry, posting, min_days)
+			remaining = result.remaining_days
+			if result.reason == "expired":
 				_throw(_("Row #{0}: batch {1} expired on {2}.").format(row.idx, batch, expiry))
-			if remaining < min_days:
+			if result.reason == "short_dated":
 				_throw(
 					_(
 						"Row #{0}: batch {1} has {2} days of shelf life left; at least {3} days are required for dispatch."

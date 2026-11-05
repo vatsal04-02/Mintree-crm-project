@@ -1,4 +1,4 @@
-"""Available-to-sell stock (Milestone 5, DECISIONS D-027).
+"""Available-to-sell stock (Milestone 5, D-027; eligibility centralised in Milestone 6, D-034).
 
 Available to sell = sellable stock - active reservations, per item (and per warehouse). Stock is
 *sellable* only when all of these hold:
@@ -10,14 +10,19 @@ Available to sell = sellable stock - active reservations, per item (and per ware
 
 Quantities come from the stock ledger (Serial and Batch Entries for batch items, Bin for others).
 Reservations come from submitted Stock Reservation Entries (reserved - delivered). Nothing is
-stored separately. The same function drives the "Available to Sell" report and the reservation
-check, so the figure a salesperson sees is the figure that is enforced.
+stored separately.
+
+The **available** figure, and every eligibility decision, come from
+``factory_ops.inventory.batch_eligibility`` - the same module the reservation check, Pick List
+suggestions and Delivery Note use - so the figure a salesperson sees is the figure that is
+enforced. The other columns (sellable, short-dated, expired, QC Hold, rejected, reserved, picked)
+are a breakdown for information.
 """
 
 from collections import defaultdict
 
 import frappe
-from frappe.utils import cint, date_diff, flt, getdate, nowdate
+from frappe.utils import cint, flt, nowdate
 
 from factory_ops.constants import (
 	WH_TYPE_NOT_FOR_DISPATCH,
@@ -25,11 +30,9 @@ from factory_ops.constants import (
 	WH_TYPE_REJECTED,
 	WH_TYPE_USABLE,
 )
+from factory_ops.inventory import batch_eligibility as be
+from factory_ops.inventory.batch_eligibility import check_batch, min_shelf_life_days
 from factory_ops.inventory.stock_queries import LEDGER_BUNDLE
-
-
-def min_shelf_life_days() -> int:
-	return cint(frappe.db.get_single_value("Factory Ops Settings", "min_shelf_life_days_for_dispatch"))
 
 
 def _empty():
@@ -40,12 +43,17 @@ def _empty():
 		"qc_hold": 0.0,
 		"rejected": 0.0,
 		"reserved": 0.0,
+		"picked": 0.0,
+		"available": 0.0,
 	}
 
 
-def stock_positions(company: str, item_code: str | None = None, warehouse: str | None = None) -> dict:
-	"""{(item_code, warehouse): {sellable, short_dated, expired, qc_hold, rejected, reserved}}"""
-	today = nowdate()
+def stock_positions(
+	company: str, item_code: str | None = None, warehouse: str | None = None, on_date=None
+) -> dict:
+	"""{(item_code, warehouse): {sellable, short_dated, expired, qc_hold, rejected, reserved, picked,
+	available}}. ``available`` is the enforced figure (batch_eligibility.available_to_sell)."""
+	today = on_date or nowdate()
 	min_days = min_shelf_life_days()
 	positions: dict = defaultdict(_empty)
 	values = {"company": company, "item_code": item_code, "warehouse": warehouse}
@@ -103,36 +111,47 @@ def stock_positions(company: str, item_code: str | None = None, warehouse: str |
 		as_dict=True,
 	):
 		positions[(r.item_code, r.warehouse)]["reserved"] += max(flt(r.qty), 0)
+
+	# picked on open Pick Lists and available to sell, from the central eligibility module
+	for item in {i for i, _ in positions}:
+		if not cint(frappe.get_cached_value("Item", item, "has_batch_no")):
+			for (i, wh), pos in positions.items():
+				if i == item and pos["sellable"]:
+					pos["available"] = be.available_to_sell(company, item, wh, today)
+			continue
+		for (_batch, wh), qty in be.picked_unreserved(company, item, warehouse).items():
+			if (item, wh) in positions:
+				positions[(item, wh)]["picked"] += qty
+		free = defaultdict(float)
+		for b in be.eligible_batches(company, item, warehouse, today):
+			free[b.warehouse] += b.qty
+		reserved_qty_only = be.qty_reservations(company, item, warehouse)
+		for wh in set(free) | set(reserved_qty_only):
+			positions[(item, wh)]["available"] = max(free.get(wh, 0) - reserved_qty_only.get(wh, 0), 0)
 	return positions
 
 
 def _classify(pos, wh_type, qty, expiry_date, today, min_days):
+	result = check_batch(expiry_date, today, min_days)
 	if wh_type == WH_TYPE_QC_HOLD:
 		pos["qc_hold"] += qty
 	elif wh_type == WH_TYPE_REJECTED:
 		pos["rejected"] += qty
 	elif wh_type == WH_TYPE_NOT_FOR_DISPATCH:
-		pos[
-			"expired"
-			if expiry_date and date_diff(getdate(expiry_date), getdate(today)) < 0
-			else "short_dated"
-		] += qty
+		pos["expired" if result.reason == "expired" else "short_dated"] += qty
 	elif wh_type != WH_TYPE_USABLE:
 		return  # retained samples, job work, untyped: never offered for sale
-	elif expiry_date and date_diff(getdate(expiry_date), getdate(today)) < 0:
+	elif result.reason == "expired":
 		pos["expired"] += qty
-	elif expiry_date and date_diff(getdate(expiry_date), getdate(today)) < min_days:
+	elif result.reason == "short_dated":
 		pos["short_dated"] += qty
 	else:
 		pos["sellable"] += qty
 
 
-def available_to_sell(company: str, item_code: str, warehouse: str | None = None) -> float:
-	"""Sellable qty minus active reservations, for one item (optionally one warehouse)."""
-	total = 0.0
-	for (_item, _wh), pos in stock_positions(company, item_code, warehouse).items():
-		total += pos["sellable"] - pos["reserved"]
-	return flt(total, 6)
+def available_to_sell(company: str, item_code: str, warehouse: str | None = None, on_date=None) -> float:
+	"""The enforced figure: see ``batch_eligibility.available_to_sell``."""
+	return be.available_to_sell(company, item_code, warehouse, on_date)
 
 
 @frappe.whitelist()

@@ -388,10 +388,25 @@ class TestSalesControls(SalesTestCase):
 		expired = self.released_fg(20, expiry_days=600)
 		self.age_batch(short, 60)
 		self.age_batch(expired, -3)
-		# before segregation, ERPNext's FEFO would pin the short-dated batch first: refused
-		so = self.sales_order(DISTRIBUTOR, 30)
-		self.assert_refused(InsufficientSellableStockError, self.reserve_order, so)
-		# segregation moves short-dated and expired stock out of FG-STORES, with a stock transfer
+		# Milestone 6 (D-034): even before segregation, the reservation pins only eligible batches
+		# (ERPNext's FEFO would have pinned the short-dated one first)
+		so0 = self.sales_order(DISTRIBUTOR, 30)
+		self.reserve_order(so0)
+		pinned0 = frappe.db.sql_list(
+			"""select sbe.batch_no from `tabSerial and Batch Entry` sbe
+			inner join `tabStock Reservation Entry` sre on sre.name = sbe.parent
+			where sre.voucher_no = %s and sre.docstatus = 1""",
+			so0.name,
+		)
+		self.assertTrue(pinned0)
+		self.assertNotIn(short, pinned0)
+		self.assertNotIn(expired, pinned0)
+		# more than the eligible free stock (50 - 30 = 20) cannot be reserved
+		self.assert_refused(
+			InsufficientSellableStockError, self.reserve_order, self.sales_order(DISTRIBUTOR, 25)
+		)
+		so = self.sales_order(DISTRIBUTOR, 15)
+		# segregation (supplementary safeguard) moves short-dated and expired stock out of FG-STORES, with a stock transfer
 		entries = segregate_undispatchable_stock(self.company)
 		self.assertEqual(len(entries), 1)
 		se = frappe.get_doc("Stock Entry", entries[0])
@@ -499,7 +514,7 @@ class TestSalesControls(SalesTestCase):
 		from factory_ops.quality.report.qc_queue.qc_queue import execute as qc_queue
 
 		batch = self.released_fg(40)
-		before = (batch_qty_by_warehouse(batch), self.ats())
+		before_qty, before_ats = batch_qty_by_warehouse(batch), self.ats()
 		pl = self.pick(self.sales_order(DISTRIBUTOR, 25))
 		self.assertEqual(sum(flt(r.qty) for r in pl.locations if r.batch_no == batch), 25)
 		self.assertTrue(
@@ -508,7 +523,10 @@ class TestSalesControls(SalesTestCase):
 				{"voucher_type": "Pick List", "voucher_no": pl.name, "docstatus": 1},
 			)
 		)
-		self.assertEqual((batch_qty_by_warehouse(batch), self.ats()), before)
+		# the pick moves no stock; available to sell drops by exactly the picked 25 (ERPNext v16
+		# treats picked stock as allocated, D-034), not by the Pick List's bundle a second time
+		self.assertEqual(batch_qty_by_warehouse(batch), before_qty)
+		self.assertEqual(flt(before_ats - self.ats()), 25)
 		_, rows = qc_stock({"company": self.company, "item_code": FG})
 		self.assertEqual(sum(flt(r.qty) for r in rows if r.batch_no == batch), 40)
 		self.assertIsNotNone(qc_queue({"company": self.company}))

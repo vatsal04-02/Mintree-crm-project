@@ -12,7 +12,7 @@ from frappe.utils import flt
 
 from factory_ops.sales_ops.available_to_sell import min_shelf_life_days, stock_positions
 
-QTY_FIELDS = ("sellable", "reserved", "available", "short_dated", "expired", "qc_hold", "rejected")
+QTY_FIELDS = ("sellable", "reserved", "picked", "available", "short_dated", "expired", "qc_hold", "rejected")
 
 
 def execute(filters=None):
@@ -38,6 +38,7 @@ def get_columns(filters):
 	labels = {
 		"sellable": _("Sellable"),
 		"reserved": _("Reserved"),
+		"picked": _("Picked, not reserved"),
 		"available": _("Available to Sell"),
 		"short_dated": _("Short-dated (< {0} days)").format(min_shelf_life_days()),
 		"expired": _("Expired"),
@@ -71,10 +72,9 @@ def get_data(filters):
 		row = rows.setdefault(
 			key, {"item_code": item_code, "warehouse": warehouse, **{f: 0.0 for f in QTY_FIELDS}}
 		)
-		for field in ("sellable", "reserved", "short_dated", "expired", "qc_hold", "rejected"):
+		for field in QTY_FIELDS:
 			row[field] += flt(pos[field])
 	for row in rows.values():
-		row["available"] = row["sellable"] - row["reserved"]
 		row["item_name"], row["stock_uom"] = frappe.get_cached_value(
 			"Item", row["item_code"], ["item_name", "stock_uom"]
 		)

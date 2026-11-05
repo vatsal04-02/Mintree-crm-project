@@ -25,8 +25,14 @@ from frappe import _
 from frappe.utils import cint, date_diff, flt, getdate, nowdate
 
 from factory_ops.constants import D2C_CHANNELS
+from factory_ops.inventory.batch_eligibility import (
+	allocate,
+	available_to_sell,
+	check_batch,
+	check_batch_no,
+	min_shelf_life_days,
+)
 from factory_ops.inventory.guards import QCGuardError
-from factory_ops.sales_ops.available_to_sell import available_to_sell, min_shelf_life_days
 
 
 class DuplicateOrderError(frappe.ValidationError):
@@ -127,10 +133,9 @@ def validate_reserved_batches_dispatchable(doc, method=None):
 			(row.so_detail, row.warehouse),
 			as_dict=True,
 		):
-			if not b.expiry_date:
-				continue
-			remaining = date_diff(getdate(b.expiry_date), getdate(doc.get("posting_date") or nowdate()))
-			if remaining < 0 or remaining < min_days:
+			result = check_batch(b.expiry_date, doc.get("posting_date") or nowdate(), min_days)
+			remaining = result.remaining_days
+			if not result.eligible:
 				frappe.throw(
 					_(
 						"Row #{0}: batch {1}, reserved for this order, has {2} days of shelf life left; at least {3} are required for dispatch. Cancel the reservation and reserve again so another batch is chosen."
@@ -144,20 +149,27 @@ def validate_reserved_batches_dispatchable(doc, method=None):
 # Stock Reservation Entry: only stock that is available to sell
 # ---------------------------------------------------------------------------
 def validate_reservation_is_sellable(doc, method=None):
-	"""before_submit. Runs after the QC guard has refused QC Hold / Rejected warehouses."""
+	"""before_submit, after the QC guard has refused QC Hold / Rejected warehouses.
+
+	- Reserved from a Pick List: the batches were chosen by the Pick List under the same
+	  eligibility rule; check them, do not re-count the picked quantity.
+	- Reserved from the Sales Order: ERPNext pins batches FEFO without knowing the minimum shelf
+	  life. Ineligible pins are replaced by eligible batches (FEFO); if eligible free stock is
+	  short, the reservation is refused. The quantity may never exceed available to sell.
+	"""
 	if doc.voucher_type != "Sales Order":
 		return
-	for row in doc.get("sb_entries") or []:
-		if not row.get("batch_no"):
-			continue
-		expiry = frappe.db.get_value("Batch", row.batch_no, "expiry_date")
-		if expiry and not _batch_sellable(expiry):
+	pinned = [r for r in doc.get("sb_entries") or [] if r.get("batch_no")]
+	ineligible = [r for r in pinned if not check_batch_no(r.batch_no).eligible]
+	if doc.get("from_voucher_type") == "Pick List":
+		if ineligible:
 			frappe.throw(
 				_(
 					"Batch {0} cannot be reserved: it is expired or below the minimum shelf life for dispatch."
-				).format(row.batch_no),
+				).format(ineligible[0].batch_no),
 				InsufficientSellableStockError,
 			)
+		return
 	available = available_to_sell(doc.company, doc.item_code, doc.warehouse)
 	if flt(doc.reserved_qty) > flt(available) + 1e-9:
 		frappe.throw(
@@ -166,11 +178,128 @@ def validate_reservation_is_sellable(doc, method=None):
 			).format(flt(available), doc.item_code, doc.warehouse, flt(doc.reserved_qty)),
 			InsufficientSellableStockError,
 		)
+	if ineligible:
+		allocation = allocate(doc.company, doc.item_code, doc.warehouse, flt(doc.reserved_qty))
+		if flt(sum(q for _, q in allocation), 6) < flt(doc.reserved_qty, 6):
+			frappe.throw(
+				_("Not enough stock of {0} with enough shelf life left in {1} to reserve {2}.").format(
+					doc.item_code, doc.warehouse, flt(doc.reserved_qty)
+				),
+				InsufficientSellableStockError,
+			)
+		doc.set("sb_entries", [])
+		for batch_no, qty in allocation:
+			doc.append("sb_entries", {"batch_no": batch_no, "qty": qty, "warehouse": doc.warehouse})
 
 
-def _batch_sellable(expiry_date) -> bool:
-	remaining = date_diff(getdate(expiry_date), getdate(nowdate()))
-	return remaining >= 0 and remaining >= min_shelf_life_days()
+# ---------------------------------------------------------------------------
+# Pick List: suggest only eligible batches
+# ---------------------------------------------------------------------------
+def reallocate_pick_list(doc, method=None):
+	"""before_save, right after ERPNext computed the suggested locations (FEFO, expired skipped).
+	Rows whose batch is not dispatchable are replaced by eligible batches from the same
+	warehouse, FEFO; quantities already suggested in this Pick List are not offered twice.
+	Manually picked lists are left as entered (and checked by the dispatch guard)."""
+	if cint(doc.get("pick_manually")) or not doc.get("locations"):
+		return
+	taken: dict = {}
+	keep, redo = [], []
+	for row in doc.locations:
+		if row.get("batch_no") and not check_batch_no(row.batch_no).eligible:
+			redo.append(row)
+		else:
+			keep.append(row)
+			if row.get("batch_no"):
+				key = (row.batch_no, row.warehouse)
+				taken[key] = taken.get(key, 0) + flt(row.stock_qty or row.qty)
+	if not redo:
+		return
+	rows = list(keep)
+	for row in redo:
+		need = flt(row.stock_qty or row.qty)
+		for batch_no, qty in allocate(doc.company, row.item_code, row.warehouse, need, taken=taken):
+			new = frappe.copy_doc(row, ignore_no_copy=False)
+			new.batch_no = batch_no
+			new.serial_and_batch_bundle = None
+			new.use_serial_batch_fields = 1
+			factor = flt(row.conversion_factor) or 1
+			new.stock_qty = qty
+			new.qty = qty / factor
+			new.picked_qty = new.stock_qty if flt(row.picked_qty) else row.picked_qty
+			rows.append(new)
+	doc.set("locations", [])
+	for i, row in enumerate(rows, start=1):
+		row.idx = i
+		doc.append("locations", row)
+
+
+# ---------------------------------------------------------------------------
+# Delivery Note: choose eligible batches when ERPNext would choose them itself
+# ---------------------------------------------------------------------------
+def assign_eligible_batches(doc, method=None):
+	"""before_validate of a draft Delivery Note, only when a minimum shelf life is set (with 0,
+	ERPNext's own FEFO already skips expired batches and nothing changes).
+
+	Rows of batch items with no batch, no bundle and no reservation behind them are given eligible
+	batches FEFO (a row is split when it needs more than one batch). Batches entered by a user are
+	left alone and checked by the dispatch guard; reserved rows ship their reserved batches."""
+	if cint(doc.docstatus) != 0 or cint(doc.get("is_return")) or not min_shelf_life_days():
+		return
+	taken: dict = {}
+	rows = []
+	changed = False
+	for row in doc.items:
+		if (
+			row.get("batch_no")
+			or row.get("serial_and_batch_bundle")
+			or not row.get("warehouse")
+			or not cint(frappe.get_cached_value("Item", row.item_code, "has_batch_no"))
+			or (row.get("so_detail") and _has_reservation(row.so_detail))
+		):
+			rows.append(row)
+			continue
+		allocation = allocate(
+			doc.company,
+			row.item_code,
+			row.warehouse,
+			flt(row.stock_qty or row.qty),
+			on_date=doc.posting_date,
+			taken=taken,
+		)
+		if flt(sum(q for _, q in allocation), 6) < flt(row.stock_qty or row.qty, 6):
+			# not enough eligible stock: never shrink a quantity silently; ERPNext / the dispatch
+			# guard refuse the document with a reason
+			for batch_no, qty in allocation:
+				taken[(batch_no, row.warehouse)] -= qty
+			rows.append(row)
+			continue
+		changed = True
+		factor = flt(row.conversion_factor) or 1
+		for i, (batch_no, qty) in enumerate(allocation):
+			new = row if i == 0 else frappe.copy_doc(row, ignore_no_copy=False)
+			new.batch_no = batch_no
+			new.use_serial_batch_fields = 1
+			new.qty = qty / factor
+			new.stock_qty = qty
+			rows.append(new)
+	if changed:
+		doc.set("items", [])
+		for i, row in enumerate(rows, start=1):
+			row.idx = i
+			doc.append("items", row)
+
+
+def _has_reservation(so_detail: str) -> bool:
+	return bool(
+		frappe.db.exists(
+			"Stock Reservation Entry",
+			{
+				"voucher_detail_no": so_detail,
+				"docstatus": 1,
+				"status": ("not in", ("Delivered", "Cancelled")),
+			},
+		)
+	)
 
 
 # ---------------------------------------------------------------------------

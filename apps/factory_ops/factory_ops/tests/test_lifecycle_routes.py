@@ -303,25 +303,39 @@ class TestLifecycleRoutes(FactoryOpsTestCase):
 		the transaction is rolled back, as Frappe does for every failed request."""
 		_, short = self.receive(QC_ITEM, self.hold, 20, expiry_days=10)
 		self.qc_release(short, "Release")
+		# Milestone 6 (D-034): where eligible stock exists, the Delivery Note is given an eligible
+		# batch up front. To reach a failure *after* ledger rows, the short-dated batch is the only
+		# stock in its own usable warehouse, so ERPNext still picks it during submit.
+		alone = self.wh["BULK-STORES"]
+		self.transfer(QC_ITEM, short, 20, self.stores, alone)
 		frappe.db.set_single_value("Factory Ops Settings", "min_shelf_life_days_for_dispatch", 30)
 		try:
-			dn = frappe.get_doc(
-				{
-					"doctype": "Delivery Note",
-					"company": COMPANY,
-					"customer": CUSTOMER,
-					"items": [{"item_code": QC_ITEM, "qty": 5, "rate": 200, "warehouse": self.stores}],
-				}
-			)
+
+			def dn_from(warehouse):
+				return frappe.get_doc(
+					{
+						"doctype": "Delivery Note",
+						"company": COMPANY,
+						"customer": CUSTOMER,
+						"items": [{"item_code": QC_ITEM, "qty": 5, "rate": 200, "warehouse": warehouse}],
+					}
+				)
+
+			dn = dn_from(alone)
 			dn.insert()
 			frappe.db.savepoint("before_submit")
-			# no batch chosen: ERPNext picks FEFO during submit, i.e. the short-dated batch
+			# no batch chosen and nothing eligible: ERPNext picks FEFO during submit, i.e. the
+			# short-dated batch, and the guard refuses it in on_submit, after the ledger rows
 			with self.assertRaises(QCGuardError):
 				dn.submit()
 			frappe.db.rollback(save_point="before_submit")
 			self.assertEqual(ledger_rows(dn.name), {"sle": 0, "gle": 0, "bundle": 0})
 			self.assertEqual(frappe.db.get_value("Delivery Note", dn.name, "docstatus"), 0)
-			self.assertEqual(batch_qty_in_warehouse(short, self.stores), 20)
+			self.assertEqual(batch_qty_in_warehouse(short, alone), 20)
+			# where eligible stock exists, the eligible batch is chosen and the short one is not
+			ok = dn_from(self.stores)
+			ok.insert()
+			self.assertTrue(all(r.batch_no and r.batch_no != short for r in ok.items))
 		finally:
 			frappe.db.set_single_value("Factory Ops Settings", "min_shelf_life_days_for_dispatch", 0)
 

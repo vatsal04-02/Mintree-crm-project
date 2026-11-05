@@ -19,8 +19,8 @@ from frappe import _
 from frappe.utils import add_days, flt, nowdate
 
 from factory_ops.constants import WH_TYPE_NOT_FOR_DISPATCH, WH_TYPE_USABLE
+from factory_ops.inventory.batch_eligibility import min_shelf_life_days
 from factory_ops.inventory.stock_queries import LEDGER_BUNDLE
-from factory_ops.sales_ops.available_to_sell import min_shelf_life_days
 
 REMARK = "Shelf-life segregation: expired or below the minimum shelf life for dispatch (factory_ops)"
 
