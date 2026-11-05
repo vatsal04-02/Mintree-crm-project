@@ -132,3 +132,8 @@ scheduler_events = {
 fixtures = [
 	{"dt": "Workspace", "filters": [["module", "in", ["Factory Ops", "Quality"]]]},
 ]
+
+# Factory OS front end (apps/web), built into www/factory.html + public/factory; client-side routes
+website_route_rules = [
+	{"from_route": "/factory/<path:app_path>", "to_route": "factory"},
+]
