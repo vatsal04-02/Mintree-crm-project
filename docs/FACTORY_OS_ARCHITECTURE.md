@@ -42,7 +42,7 @@ Browser ── same origin ──► Frappe web server (bench / gunicorn behind 
 | Server state | TanStack Query; every mutation invalidates the cache, so screens re-read the ERP after a change |
 | API client | `src/api/frappe.ts`: `fetch` with `credentials: same-origin`, CSRF header on writes, server messages surfaced verbatim (`FrappeError` with message, title, status) |
 | Session | `src/api/session.ts`: boot query, `can(doctype, ptype)`, `hasReport` |
-| UI | own components on the incumbent token set (`src/styles/tokens.css`), radix-ui primitives (dialog, dropdown, popover), cmdk palette, lucide icons, sonner toasts |
+| UI | own components on `src/styles/tokens.css` + `layout.css` (Desk-style frame, Inter), radix-ui primitives (dialog, dropdown, popover), cmdk palette, lucide icons, sonner toasts |
 | Quality | Biome lint/format, Vitest (unit), Playwright end-to-end script against a running site |
 | Removed from the incumbent | Lingui (English only, D-043), the in-memory sample API, recharts, zustand store |
 
@@ -92,7 +92,7 @@ the menu (from the boot answer); the page itself still works only if the server 
 | | `/quality/releases` · `/new` · `/:name` | QC release with inspection; QA re-test | QC Release read |
 | | `/quality/deviations` · `/new` · `/:name` | Deviations; QA approval | QC Deviation read |
 | Commerce | `/sales/orders` · `/new` · `/:name` | Sales orders; create pick list | Sales Order read |
-| | `/sales/pick-lists/:name` | Pick list; reserve; create delivery note | (opened from an order) |
+| | `/sales/pick-lists` · `/:name` | Pick lists (start from a sales order); reserve; create delivery note | Pick List read |
 | | `/sales/deliveries` · `/:name` | Delivery notes; dispatch details; packing slip; dispatch; invoice | Delivery Note read |
 | | `/sales/available`, `/sales/dispatch-register` | Reports | report |
 | Finance | `/accounts/invoices` · `/:name` | Sales invoices; record payment | Sales Invoice read |
@@ -101,9 +101,13 @@ the menu (from the boot answer); the page itself still works only if the server 
 | Administration | `/integrations` | Integration Centre (honest statuses) | signed in |
 | | `/planned` | Planned modules (not built) | signed in |
 
-Top bar: search (Ctrl K or `/`) across permitted documents and pages; "New" menu of create
-actions the role may perform; company indicator; notifications; account menu (roles, open Desk,
-sign out).
+Frame (Desk-style, no top bar): an icon rail with search (Ctrl K or `/`) across permitted
+documents and pages, notifications, one icon per module and the account menu; a panel for the open
+module with its pages and collapsible Create / Reports sections. Groups in the table above map to
+modules: Buying (`/procurement`), Stock (`/inventory`), Manufacturing (`/production`), Quality
+(`/quality`), Selling (`/sales`), Accounts (`/accounts`), Setup (`/integrations`, `/planned`).
+List routes accept `?start=1` to open their start-from picker. Every document page shows its
+Connections (documents before and after it in the flow).
 
 ## 5. Development and deployment
 

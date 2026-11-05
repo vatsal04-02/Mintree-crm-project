@@ -18,16 +18,30 @@ ready; nothing has been deployed to staging or production.
 
 | Suite | Result |
 |---|---|
-| Front-end unit tests (`pnpm test`): API client (CSRF on writes only, server message and title, exception fallback, markup stripped, unreachable server, submit re-reads), navigation by permission, formatting | 12 / 12 pass |
+| Front-end unit tests (`pnpm test`): API client (CSRF on writes only, server message and title, exception fallback, markup stripped, unreachable server, submit re-reads), navigation by permission, formatting | 13 / 13 pass |
 | Type check (`tsc -b`), lint (`biome check`) | clean (3 style warnings in CSS, no errors) |
-| End-to-end browser run `apps/web/e2e/run.mjs`, nine SAMPLE role users, against the Frappe-served build at `/factory` | 36 / 36 pass (run MW3L74HP) |
-| Backend: new `tests/test_factory_os_api.py` | 3 / 3 pass |
+| End-to-end browser run `apps/web/e2e/run.mjs`, nine SAMPLE role users, against the Frappe-served build at `/factory` | 44 / 44 pass (run MW3MF2V4), including a navigation sweep: every page of every module for eight roles opens with exactly one active menu item and no error |
+| Backend: new `tests/test_factory_os_api.py` | 3 / 3 pass (reports offered only when the role also has report rights on the report's DocType) |
 | Backend: full `factory_ops` suite on the dev bench (`test.localhost`) | 155 / 155 pass (152 earlier + 3 new) |
 | Impeccable design detector on `apps/web/src` | 0 findings |
 
 What the end-to-end run proves: each step is a click in the React app, and each outcome is read
 back from the ERP REST API (the same records ERPNext Desk shows). Screenshots: `apps/web/e2e/out/`
 (not committed).
+
+## Navigation revision (client review, same day)
+
+- Desk-style frame: icon rail of modules + module panel with collapsible Create and Reports.
+- Every list can add: New, or a start-from picker (goods receipt from a PO, pick list from a sales
+  order, delivery from a pick list, invoice from a delivery, payment from an invoice); new Pick
+  Lists list page.
+- Connections on every document page (MR ↔ PO ↔ GRN ↔ QC Release; SO ↔ pick list ↔ delivery ↔
+  invoice ↔ payment; stock entry ↔ work order ↔ QC release; deviation ↔ releases), and links on
+  parties, batches and document numbers.
+- The navigation sweep found two pages offered to roles that could not run them (Payables for
+  buyers: needs Journal Entry; Wastage for accounts: needs Stock Entry report rights). The boot
+  endpoint now checks report rights on each report's DocType, and the ageing reports also require
+  Journal Entry read.
 
 ## Per-module completion reports
 

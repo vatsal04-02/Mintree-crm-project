@@ -266,3 +266,11 @@ framed sheet, status chips, densities) was kept and extended (`FACTORY_OS_UI_DES
 connection that exists and works (today: the ERP itself). Marketplaces, courier, Meta and AI are
 Not implemented; GST is Not configured. No Connect buttons until connector code and verified
 credentials exist; secrets for any connector stay on the server.
+
+**D-045 Desk-style navigation; every page connected.** After client review the first front-end look
+(framed sheet, top bar, monospace codes) was replaced by the ERPNext v16 Desk frame: icon rail of
+modules and a module panel with collapsible Create / Reports sections, Inter, neutral greys. Every
+list page offers a way to add (New, or a start-from picker over the source documents), and every
+document page shows its Connections. The boot endpoint lists a report only when the user also has
+report rights on its reference DocType, and the ERPNext ageing reports are offered only with
+Journal Entry read: otherwise the page would be offered and then refused.
