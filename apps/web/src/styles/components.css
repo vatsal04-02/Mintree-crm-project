@@ -899,3 +899,8 @@ textarea {
   font-size: var(--fs-small);
   white-space: nowrap;
 }
+
+.prewrap {
+  white-space: pre-wrap;
+  margin: 0 0 8px;
+}

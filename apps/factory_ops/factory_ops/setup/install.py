@@ -40,6 +40,8 @@ def apply_setup():
 	from factory_ops.marketplace.setup import ensure_marketplace_channels
 
 	ensure_marketplace_channels()
+	if frappe.db.exists("DocType", "Meta Connection") and not frappe.db.exists("Meta Connection", "Meta Business"):
+		frappe.get_doc({"doctype": "Meta Connection", "connection_name": "Meta Business"}).insert(ignore_permissions=True)
 	frappe.clear_cache()
 
 

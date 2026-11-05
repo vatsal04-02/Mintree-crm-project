@@ -50,6 +50,9 @@ SAMPLE_USERS = {
 	"sample.maintmanager@sample.invalid": ("SAMPLE Maintenance Manager", ["Maintenance Manager", "Maintenance User", "Stock User"], None),
 	# Marketplaces (MINTREE_ECOMMERCE_MODULE.md): Sales User so a marketplace order becomes a sales order
 	"sample.marketplace@sample.invalid": ("SAMPLE Marketplace Manager", ["Marketplace Manager", "Marketplace User", "Sales User"], None),
+	# Brand and marketing (MINTREE_META_MARKETING_MODULE.md): the executive drafts, the manager approves
+	"sample.marketingexec@sample.invalid": ("SAMPLE Marketing Executive", ["Marketing User"], None),
+	"sample.marketing@sample.invalid": ("SAMPLE Marketing Manager", ["Marketing Manager", "Marketing User"], None),
 	"sample.masterdata@sample.invalid": (
 		"SAMPLE Master Data",
 		["Item Manager", "Purchase Master Manager", "Sales Master Manager", "Stock Manager", "Stock User"],

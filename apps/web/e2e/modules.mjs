@@ -377,6 +377,69 @@ try {
     check("overview lists the four channels", (await mk.page.getByRole("table", { name: "Channels" }).getByRole("row").count()) === 5);
     check("no JavaScript errors (marketplace)", mk.page.errors.length === 0, mk.page.errors.join("; "));
   }
+  if (SECTIONS.has("marketing")) {
+    /* ============ Marketing: campaign approval, honest figures, content to published, Meta state ============ */
+    const ex = await as("sample.marketingexec@sample.invalid");
+    await go(ex, "/marketing/campaigns/new");
+    await textField(ex.page, "Name", `E2E monsoon hair care ${RUN}`);
+    await numberField(ex.page, "Budget", 50000);
+    await ex.page.getByRole("textbox", { name: /^Target audience/ }).fill("Women 22-40, metro India, interested in hair care (e2e)");
+    await click(ex.page, "Save draft");
+    const camp = await docName(ex.page, "/marketing/campaigns");
+    await click(ex.page, "Send for approval");
+    await waitFor(async () => (await ex.doc("Marketing Campaign", camp)).status === "Awaiting Approval", "awaiting");
+    check("executive drafts a campaign and sends it for approval", true, camp);
+    check("executive is not offered Approve", (await ex.page.getByRole("button", { name: "Approve", exact: true }).count()) === 0);
+
+    const mg = await as("sample.marketing@sample.invalid");
+    await go(mg, `/marketing/campaigns/${camp}`);
+    await click(mg.page, "Approve");
+    await waitFor(async () => (await mg.doc("Marketing Campaign", camp)).status === "Approved", "approved");
+    check("marketing manager approves; decision recorded", (await mg.doc("Marketing Campaign", camp)).approved_by === "sample.marketing@sample.invalid");
+
+    await go(ex, `/marketing/campaigns/${camp}`);
+    await click(ex.page, "Mark live");
+    await waitFor(async () => (await ex.doc("Marketing Campaign", camp)).status === "Live", "live");
+    await numberField(ex.page, "Spend", 1200);
+    await numberField(ex.page, "Impressions", 40000);
+    await numberField(ex.page, "Clicks", 600);
+    await click(ex.page, "Record figures");
+    const perf = await waitFor(async () => {
+      const l = await ex.list("Campaign Performance", { campaign: camp }, ["name", "source", "ctr", "cost_per_lead"]);
+      return l.length && l[0];
+    }, "figures");
+    check("figures entered by hand carry their source; CTR 1.5 %, no cost per lead without leads", perf.source === "Manual entry from the ad platform" && Math.abs(perf.ctr - 1.5) < 0.001 && !perf.cost_per_lead);
+
+    await go(ex, "/marketing/content/new");
+    await textField(ex.page, "Title", `E2E reel ${RUN}`);
+    await link(ex.page, "Campaign", camp);
+    await ex.page.getByRole("textbox", { name: /^Draft caption/ }).fill("Three steps to a calm scalp (e2e draft).");
+    await click(ex.page, "Save");
+    const content = await docName(ex.page, "/marketing/content");
+    await click(ex.page, "Send for review");
+    await waitFor(async () => (await ex.doc("Marketing Content", content)).status === "In Review", "review");
+    await go(mg, `/marketing/content/${content}`);
+    await click(mg.page, "Approve");
+    await waitFor(async () => (await mg.doc("Marketing Content", content)).status === "Approved", "content approved");
+    await go(ex, `/marketing/content/${content}`);
+    await click(ex.page, "Mark scheduled");
+    await waitFor(async () => (await ex.doc("Marketing Content", content)).status === "Scheduled", "scheduled");
+    await textField(ex.page, "URL", "https://www.instagram.com/p/e2e-example");
+    await click(ex.page, "Mark published");
+    await waitFor(async () => (await ex.doc("Marketing Content", content)).status === "Published", "published");
+    check("content: draft → review → approved by the manager → scheduled → published by hand with its URL", true, content);
+
+    await go(mg, "/marketing/meta");
+    await click(mg.page, "Test connection");
+    await mg.page.getByText(/^Skipped:/).waitFor();
+    const meta = await mg.doc("Meta Connection", "Meta Business");
+    check("Meta connection is Not configured and the test is refused, not faked", meta.connection_state === "Not configured", meta.connection_state);
+    await go(mg, "/marketing");
+    await mg.page.getByText(/Performance · source: Manual entry/).waitFor();
+    await shot(mg, "marketing-overview");
+    check("overview groups figures by source", (await mg.page.getByText(/Performance · source:/).count()) >= 1);
+    for (const c of [ex, mg]) check(`no JavaScript errors (${c.user})`, c.page.errors.length === 0, c.page.errors.join("; "));
+  }
 } catch (e) {
   results.push({ name: "run completed", ok: false });
   console.error(`FAIL run stopped: ${String(e).split("\n")[0]}`);

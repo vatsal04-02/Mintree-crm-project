@@ -59,6 +59,20 @@ const TONES: Record<string, Tone> = {
   Proposed: "neutral",
   "In Progress": "progress",
   Planned: "neutral",
+  // Marketing and maintenance
+  "Awaiting Approval": "hold",
+  "In Review": "hold",
+  Live: "released",
+  Paused: "hold",
+  Scheduled: "progress",
+  Published: "released",
+  Idea: "neutral",
+  "In Production": "progress",
+  Active: "released",
+  Breakdown: "rejected",
+  Idle: "neutral",
+  Retired: "neutral",
+  "Under Maintenance": "hold",
 };
 
 export function toneOf(status: string): Tone {

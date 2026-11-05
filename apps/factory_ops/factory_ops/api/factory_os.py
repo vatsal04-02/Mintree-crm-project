@@ -26,6 +26,8 @@ DOCTYPES = (
 	# Marketplaces
 	"Marketplace Channel", "Marketplace Listing", "Marketplace Order", "Marketplace Sync Log",
 	"Marketplace Return", "Marketplace Settlement",
+	# Brand and marketing
+	"Marketing Campaign", "Marketing Content", "Campaign Performance", "Meta Connection",
 )
 REPORTS = (
 	"Stock by QC Status", "QC Queue", "Available to Sell", "Dispatch Register",

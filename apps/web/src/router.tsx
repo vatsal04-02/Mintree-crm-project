@@ -15,6 +15,7 @@ import * as admin from "./modules/admin";
 import { CommandCenter, Login } from "./modules/home";
 import * as inv from "./modules/inventory";
 import * as mnt from "./modules/maintenance";
+import * as mktg from "./modules/marketing";
 import * as mkt from "./modules/marketplace";
 import * as proc from "./modules/procurement";
 import * as prod from "./modules/production";
@@ -149,6 +150,14 @@ const routeTree = root.addChildren([
     page("/marketplace/settlements/new", mkt.SettlementNew),
     page("/marketplace/settlements/$name", mkt.SettlementPage),
     page("/marketplace/channels/$name", mkt.ChannelPage),
+    page("/marketing", mktg.MarketingOverview),
+    page("/marketing/campaigns", mktg.CampaignList),
+    page("/marketing/campaigns/new", mktg.CampaignNew),
+    page("/marketing/campaigns/$name", mktg.CampaignPage),
+    page("/marketing/content", mktg.ContentList),
+    page("/marketing/content/new", mktg.ContentNew),
+    page("/marketing/content/$name", mktg.ContentPage),
+    page("/marketing/meta", mktg.MetaConnectionPage),
     page("/integrations", admin.IntegrationCentre),
     page("/planned", admin.PlannedModules),
   ]),
