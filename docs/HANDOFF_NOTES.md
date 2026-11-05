@@ -1,7 +1,7 @@
 # Handoff notes
 
 Context for whoever continues this work: FlowHQ, the client, or a new Claude Code session in a fresh
-container. Last updated 2026-11-05, end of Milestone 5 (sales, dispatch and accounts).
+container. Last updated 2026-11-05, **during Milestone 6** (Parts A-D built and tested, Parts E-F not finished).
 
 ## Where things stand
 
@@ -31,15 +31,76 @@ container. Last updated 2026-11-05, end of Milestone 5 (sales, dispatch and acco
     (commit 15f07a0: 114 OK, lint OK).
   - HTTP acceptance 16/16 (purchase/QC) and 15/15 (production); browser checks 17/17 (QC) and 14/14
     (production); workers and scheduler verified running jobs.
-- **Not started (by instruction):** R&D, marketplace integrations, AI.
-- **Not yet built:**
-  - import templates, workspaces and dashboards (Milestone 6).
+- **Milestone 6 (in progress, see the next section).**
+- **Not started (by instruction):** R&D, marketplace integrations, courier/Meta integrations, AI,
+  eBMR, GST activation, a React frontend, production deployment.
+
+## Milestone 6: state at this handoff
+
+| Part | State | Commit |
+| --- | --- | --- |
+| A. Shelf-life eligibility fix | **done, tested** | `a36f213` |
+| B. Master data import + quality masters | **done, tested** | `11ad141` |
+| C. Role workspaces | **built, unit + browser tested** | `d586567` |
+| D. Reports | **built, tested** | same commit as C |
+| E. Quality gates | **partly done** (list below) | — |
+| F. Documentation | **not done** (list below) | — |
+
+**A. One eligibility rule** (`inventory/batch_eligibility.py`): `check_batch` (expired / below minimum
+shelf life; exactly at the minimum is eligible; setting read on every call) and quantities built
+from ERPNext v16's own primitives (ledger batches, pinned and quantity-only reservations,
+picked-not-reserved). Used by Available to Sell, Sales Order reservation (ineligible pins are
+re-pinned), Pick List suggestions (ineligible rows replaced), Delivery Note (rows without a batch
+get eligible batches when a minimum is set), G6 and segregation (now only a safeguard). 10 new
+tests; a mutation check (fix unhooked) fails 3 of them.
+
+**B. Master Data Import** DocType (`factory_ops/doctype/master_data_import`, engine
+`master_data/importer.py`): Validate (row / column / value / reason, nothing written) -> Import
+(only when clean, re-validates, all-or-nothing in one savepoint, user's own permissions). Types:
+Items, Suppliers, Customers, BOMs, Opening Stock, Item Prices. XLSX/CSV templates generated from the
+same spec (`master_data/templates/`, regenerate with
+`bench --site <site> execute factory_ops.master_data.templates.write_templates`). SAMPLE inspection
+templates per group, brand, workstations, operations. Fixed: QI type now follows the item group
+(BULK In Process, FG Outgoing). 15 tests.
+
+**C. Workspaces** (`setup/workspaces.py`, applied on every migrate): Management, Procurement,
+Stores and Warehouse, Production Floor, Quality Control, Sales and Dispatch, Factory Accounts. Each
+is a role-restricted Workspace page (number cards, charts, shortcuts, link cards) in **its own
+custom navigation module** with a one-item v16 `Sidebar` and a role-restricted Desktop Icon. New
+role **Management Viewer** (read + report only). New ledger-based cards in
+`setup/dashboard_data.py`.
+
+**D. Reports:** `Wastage by Reason` (total = GL wastage account), `RM PM Requirements` (open
+Work Order need vs usable stock, QC Hold, PO, MR, reorder level), Dispatch Eligibility column in
+Stock by QC Status.
+
+**Test state at handoff:** Milestone 6 modules pass on the dev bench: batch eligibility 10/10,
+sales 21/21, lifecycle 13/13, master data 15/15, workspaces 13/13. **Full suite on the dev bench at
+handoff: Ran 152 tests in 554.9 s, OK.** Not yet run for Milestone 6: the clean bench and CI. Browser check `deploy/dev/ui_check_workspaces.js`: **51/51** (each of 10
+SAMPLE users sees exactly their workspaces, each opens in its own shell, cards load, another role's
+workspace is refused, import form and new reports load).
+
+**Still to do for Milestone 6:**
+1. Full suite on the dev bench and on the clean bench (`~/clean-bench`, migrate first); CI on the
+   pushed commit.
+2. Re-run the earlier HTTP acceptances (`acceptance_http.py`, `acceptance_production_http.py`,
+   `acceptance_sales_http.py`) and browser checks (`ui_check*.js`) after the Milestone 6 changes;
+   Part A changed Delivery Note batch choice when a minimum shelf life is set.
+3. An HTTP-level import check: valid and invalid XLSX through the Master Data Import form as SAMPLE
+   users (unit tests cover it in-process only).
+4. Documentation (Part F): DECISIONS D-034 (eligibility), D-035 (import), D-036 (workspaces /
+   navigation modules), D-037 (Management Viewer and dashboard figures), D-038 (reports);
+   IMPLEMENTATION_PROGRESS (the brief calls it PROGRESS.md), REVISED_PHASE_1_ROADMAP (the brief's
+   IMPLEMENTATION_PLAN.md), OPEN_ISSUES, PHASE_1_TEST_RESULTS, a master-data import guide, a role
+   and permission matrix, workspace documentation.
+5. Final report to the client in the brief's ten-point format; Milestone 6 is not complete until
+   1-4 pass.
 
 ## Read these first
 
 1. `IMPLEMENTATION_PROGRESS.md`: what was built per milestone.
 2. `DECISIONS.md`: D-001 to D-033, the why behind every non-obvious choice (D-020 to D-025: production;
-   D-026 to D-033: sales).
+   D-026 to D-033: sales). Milestone 6 decisions are summarised in this file until D-034+ are written.
 3. `OPEN_ISSUES.md`: client inputs still needed and technical gaps.
 4. `DATABASE_AND_WORKFLOW_DESIGN.md` §3: the QC workflow as implemented (spike result in §3.2a).
 5. `DEPLOYMENT_RUNBOOK.md`: how to rebuild the environment and run every check.
@@ -115,16 +176,28 @@ Session-specific details you will not need elsewhere:
   reports never register.
 - **Container restarts:** `dockerd` must be started again (`docker start` the six containers); the
   benches survive on disk.
+- **Frappe v16 navigation is module-based.** `Workspace Sidebar` is an archive (editable only during
+  migrate, "nothing renders it"); the live menu is `Sidebar`, keyed by module, and a workspace opens in
+  its module's shell. Several role pages in one module all opened in the same shell; hence one custom
+  navigation module per role workspace. A sidebar listing documents is shown to anyone who can read
+  one of them, so role sidebars hold only their role-restricted page.
+- **v16 naming rules:** a workspace's URL slug may not equal a DocType's ("Warehouse" is refused, but
+  only outside migrate); a sidebar may not carry another module's name ("Production").
+- **Desktop icons** take the module of the Workspace their link names; `get_desktop_icons` without a
+  boot payload returns nothing, so verify icons in a browser. This site's home screen is the Apps
+  screen, not the icon grid.
+- **Number Cards:** named after their label; a Custom-method card is readable only by users who can
+  read its `document_type`. `test_every_card_on_a_workspace_is_readable_by_its_users` guards this.
+- **`File.get_content()`** returns text for a CSV and bytes for an XLSX.
+- **ERPNext dates a blank Item Price `valid_from` as today**; duplicate checks must do the same.
 - **`frappe.get_print` with an unknown format name** silently falls back to "Standard"; a missing format
   shows up as wrong content, not as an error.
 
-## Next task (Milestone 6)
+## Next task
 
-Milestone 5 has passed its acceptance tests. Next, per the roadmap:
-- master-data import templates (items, BOMs, customers, suppliers, opening stock with batches);
-- role workspaces and dashboards for each department;
-- bank statement import and reconciliation;
-- statutory GST only once the client provides the GSTIN and the accountant approves the setup.
+Finish Milestone 6 (the list above). Then, per the roadmap: bank statement import and
+reconciliation; statutory GST only once the client provides the GSTIN and the accountant approves the
+setup; staging deployment when the VPS credentials arrive.
 
 ## Waiting on the client (blocks real data and statutory setup)
 
@@ -135,6 +208,10 @@ Milestone 5 has passed its acceptance tests. Next, per the roadmap:
 - **Masters:** real master data.
 - **Production:** real formulas, batch sizes, process loss, wastage reasons and label content.
 - **Sales:** real customers, credit limits, payment terms, channel prices, minimum shelf life for dispatch.
+- **Milestone 6:** who holds Management Viewer; whether salespeople see receivables and buyers see
+  QC-hold counts (both hidden now, by standard permissions); whether opening stock of QC items may go
+  straight to Usable warehouses (allowed now) or must pass QC; real inspection parameters and limits
+  (SAMPLE now); reorder levels; real master data files.
 - **Accountant:** chart of accounts, rounding and invoice numbering.
 - **Commercial and infrastructure:** lawyer review of the GPL position; FlowHQ day rate; staging and
   production VPS credentials.
