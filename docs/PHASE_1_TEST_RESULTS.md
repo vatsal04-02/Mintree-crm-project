@@ -1,5 +1,36 @@
 # Phase 1 test results
 
+## Local demo preparation (2026-11-05)
+
+**The live website was not read.** This environment's network policy refused `vmintree.in`
+(proxy 403 on CONNECT; the separate web-fetch tool could not resolve the name). Every check below
+used the **invented test-fixture catalogue** (`tools/website_extraction/tests/fixtures`, products
+such as "Test Face Wash", `example.test` URLs), never Mintree data. The demo site was rebuilt
+without it afterwards.
+
+| Check | Result |
+| --- | --- |
+| Extractor and mapper tests (`python3 -m unittest discover -s tools/website_extraction/tests`), offline | **19 OK**: pagination, duplicates, retry on 429 / no retry on 404, unreachable robots.txt = fetch nothing, cache = no repeat requests, sitemap + JSON-LD fallback, one Item per variant, published SKU kept / `WEB-` code generated, MRP and selling price apart, categories with evidence |
+| factory_ops full suite on `test.localhost` (incl. new `test_demo.py`, 3) | **Ran 154 + 3 tests, OK** |
+| `reset-demo.sh` from nothing (fixture catalogue) | site built; 4 items and 7 prices through Master Data Import; DEMO opening stock through Master Data Import; re-running the seeder creates nothing |
+| Demo scenario (`demo_scenario_http.py`), 14 steps as sample users | **22/22**, on the freshly built site and again on repeated runs |
+| Demo browser check (`ui_check_demo.js`) | **18/18** after fixes (category lists, item form with catalogue section and image, imports list, one document per step, management dashboard) |
+| Workspace browser check against the demo site (`UI_BASE=http://demo.localhost:8001`) | **55/55** |
+
+Found and fixed while building the demo:
+- DEMO opening stock for cartons had no batch. Packaging is QC-controlled and so batch-tracked; the
+  Master Data Import refused the file. Data fixed.
+- Sample users could not be created on the demo site (developer mode off by design). The guard now
+  also accepts the explicit `fo_demo_site` marker.
+- Scenario script: the selling price is taken by the Sales Order from the price list (a salesperson
+  cannot list Item Prices), FEFO check no longer assumes the newest batch, every consumed material is
+  purchased so the scenario repeats, and production stock entries with no GL are accepted only when
+  their value difference is zero (all warehouses post to one Stock In Hand account); ERPNext's Stock
+  and Account Value Comparison is checked as well.
+- The website-catalogue section first rendered inside the Accounting tab; moved to the Details tab.
+  The browser check now waits for list rows and requires the item image to actually load (it failed
+  with the fixture's fake image URLs and passed with a local image file).
+
 ## Milestone 6: master data, role workspaces and reports (2026-11-05)
 
 Every number here comes from a run in this environment on the final Milestone 6 code (commit

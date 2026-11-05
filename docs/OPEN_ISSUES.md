@@ -2,6 +2,16 @@
 
 Status 2026-11-05, after Milestone 6 (master data, role workspaces and reports).
 
+## Blocking the local demo
+- **Network access to `vmintree.in`.** This development environment's network policy refused the
+  site, so the public catalogue has not been extracted. Allow the domain in the environment's
+  network settings, or run `tools/website_extraction/extract.py` on a machine with internet access
+  and commit or copy `data/mintree_website_extraction/`. Until then the demo site has DEMO materials
+  only and no website products. The extraction pipeline, demo seeding and scenario were verified
+  with an invented fixture catalogue (`PHASE_1_TEST_RESULTS.md`, "Local demo preparation").
+- **Image rights.** Product images are the brand's content; they are used only locally for the
+  demo and kept out of Git. Confirm with Mintree before using them anywhere else.
+
 ## Needs the client
 - **Legal entity, GSTIN, state.** Company setup on a real site, India Compliance, any tax invoice. The
   development site uses "SAMPLE Mintree Manufacturing" with no GSTIN; nothing it produces is a valid

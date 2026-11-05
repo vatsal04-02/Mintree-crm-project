@@ -97,7 +97,7 @@ def ensure_demo_fields():
 	create_custom_fields(
 		{
 			"Item": [
-				{"fieldname": "fo_catalogue_section", "fieldtype": "Section Break", "label": "Public website catalogue", "insert_after": "description", "collapsible": 1},
+				{"fieldname": "fo_catalogue_section", "fieldtype": "Section Break", "label": "Public website catalogue", "insert_after": "over_billing_allowance"},  # Details tab, before Description
 				{"fieldname": "fo_source_url", "fieldtype": "Data", "options": "URL", "label": "Source URL", "read_only": 1, "insert_after": "fo_catalogue_section"},
 				{"fieldname": "fo_published_sku", "fieldtype": "Data", "label": "Published SKU", "read_only": 1, "insert_after": "fo_source_url",
 				 "description": "Empty when the website publishes none; the item code is then a generated WEB- code."},

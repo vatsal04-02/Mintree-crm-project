@@ -115,6 +115,21 @@ the scenario printed.
 10. **Department workspaces:** log in as each sample user to show that everyone sees only their own
     workspace.
 
-## 5. Checks done on this build
+## 5. If something goes wrong
+
+- **"Too many queued background jobs"**: the bench has no running workers. `reset-demo.sh` drains
+  the queue with `bench worker --burst` between steps; during a live demo run `bench start` so
+  workers, scheduler and the web server all run.
+- **A rebuild stopped half way** leaves `sites/demo.localhost` without the `fo_demo_site` marker, and
+  the script then refuses to touch it. Check that it is the demo site, then remove it once by hand:
+
+  ```bash
+  bench drop-site demo.localhost --force --no-backup --db-root-username root --db-root-password "$DEV_DB_ROOT_PASSWORD"
+  ```
+
+- **No website product**: the scenario stops with "No website product on this demo site" until the
+  extraction has been run and the site rebuilt with it. It never substitutes an invented product.
+
+## 6. Checks done on this build
 
 See `PHASE_1_TEST_RESULTS.md`, "Local demo" section.

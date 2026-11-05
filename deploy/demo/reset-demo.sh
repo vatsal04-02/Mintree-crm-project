@@ -26,14 +26,21 @@ if [ -d "sites/$SITE" ]; then
   bench drop-site "$SITE" --force --no-backup --db-root-username root --db-root-password "$DB_ROOT_PASSWORD"
 fi
 
+# Frappe refuses new jobs when 700 are queued; a bench without running workers (no `bench start`)
+# fills that up across site installs. Process whatever is queued before and during the build.
+drain() { bench worker --burst >/dev/null 2>&1 || true; }
+drain
 bench new-site "$SITE" --db-root-username root --db-root-password "$DB_ROOT_PASSWORD" \
   --admin-password "$(openssl rand -hex 12)" --install-app erpnext
+drain
 bench --site "$SITE" install-app factory_ops
 bench --site "$SITE" set-config -p fo_demo_site 1
 bench --site "$SITE" set-config developer_mode 0
+drain
 bench --site "$SITE" execute factory_ops.setup.sample_company.setup_dev_site
 bench --site "$SITE" execute factory_ops.setup.sample_users.create_sample_users
 bench --site "$SITE" execute factory_ops.demo.seed.seed_demo_site --kwargs "{\"extraction_dir\": \"${EXTRACTION}\"}"
+drain
 echo
 echo "Demo site ready: $SITE. Sample-user passwords: sites/$SITE/private/sample_users.json (mode 600)."
 echo "Serve:     cd $BENCH_DIR/sites && ../env/bin/python -m frappe.utils.bench_helper frappe --site $SITE serve --port 8001 --noreload"

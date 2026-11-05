@@ -44,6 +44,7 @@ const errorDialog = async (page) => (await page.locator('.modal.show .modal-cont
   for (const group of ['Skin Care', 'Hair Care', 'Gift Sets / Combos']) {
     await page.goto(`${BASE}/desk/item?item_group=${encodeURIComponent(group)}`);
     await page.waitForSelector('.list-row-container, .no-result', { timeout: 30000 });
+    await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(1500);
     const rows = await page.locator('.list-row-container').count();
     check(`Item list filtered by category "${group}" shows the website products`, rows > 0, `${rows} rows`);
@@ -56,12 +57,14 @@ const errorDialog = async (page) => (await page.locator('.modal.show .modal-cont
   const itemTextOpen = await page.locator('.form-layout').innerText();
   check('Item form shows the public catalogue section with source URL', /Public website catalogue/.test(itemTextOpen) && /Source URL/.test(itemTextOpen), fg);
   check('Item form shows the pack size', /Pack size/.test(itemText + itemTextOpen));
-  const img = await page.locator('.sidebar-image img, .form-sidebar img').count();
-  check('Item has an image in the form sidebar', img > 0);
+  const loaded = await page.evaluate(() => [...document.querySelectorAll('.sidebar-image img, .form-sidebar img')].some((i) => i.complete && i.naturalWidth > 0));
+  check('Item image loads in the form sidebar', loaded, 'needs a downloaded image (fetch_images.py) or internet access to the image host');
   check('no error dialog on the Item form', !(await errorDialog(page)));
   await page.screenshot({ path: `${out}/item-form.png`, fullPage: true });
   await page.goto(`${BASE}/desk/master-data-import`);
   await page.waitForSelector('.list-row-container', { timeout: 30000 });
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(1500);
   check('Master Data Import list shows the catalogue imports', (await page.locator('.list-row-container').count()) >= 2);
   await page.screenshot({ path: `${out}/master-data-imports.png` });
   await ctx.close();

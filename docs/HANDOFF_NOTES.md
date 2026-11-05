@@ -37,7 +37,18 @@ development benches with SAMPLE data).
 - **Not started (by instruction):** R&D, marketplace integrations, courier/Meta integrations, AI,
   eBMR, GST activation, a React frontend, production deployment.
 
-## Read these first
+## Local demo (after Milestone 6)
+
+- `docs/DEMO_GUIDE.md`: extract the public catalogue, build `demo.localhost` with
+  `deploy/demo/reset-demo.sh`, run `deploy/demo/demo_scenario_http.py` (14 steps, 22 checks), and
+  the walkthrough for Mintree.
+- **Not done yet: the extraction itself.** `vmintree.in` is blocked by this environment's network
+  policy. Everything else was verified with an invented fixture catalogue, and the demo site was
+  rebuilt without it.
+- Synthetic data lives only in `factory_ops/demo/data.py` (`DEMO-` codes, "(NOT REAL)" names). The
+  seeder runs only on a site marked `fo_demo_site`.
+
+
 
 1. `IMPLEMENTATION_PROGRESS.md`: what was built per milestone.
 2. `DECISIONS.md`: D-001 to D-040, the why behind every non-obvious choice (D-020 to D-025: production;
