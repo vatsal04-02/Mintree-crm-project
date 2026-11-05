@@ -234,3 +234,35 @@ test `test_a_pick_list_is_not_a_stock_movement`.
 - The "Sales and Dispatch" dashboard uses standard Number Cards and Charts, so each user sees only
   cards for documents they may read.
 - No GST configuration and no GSTIN until the client's registration and the accountant's approval.
+
+## Factory OS front end (2026-11-05)
+
+D-034 to D-039 are reserved for the Milestone 6 records (batch eligibility, master data import,
+workspaces, management viewer, reports), still to be written.
+
+**D-040 React front end reinstated for daily operations.** Reverses the 2026-11-04 line that froze
+`apps/web` as a design reference. Client decision (2026-11-05): React for daily department work,
+ERPNext Desk for administration, setup, master data and whatever Factory OS does not cover yet.
+The React app holds no business rule; ERPNext + `factory_ops` validate every write.
+Architecture: `FACTORY_OS_ARCHITECTURE.md`.
+
+**D-041 Served by Frappe on the same origin at `/factory`.** The Vite build goes into
+`factory_ops/public/factory` and `factory_ops/www/factory.html`; a `website_route_rules` entry
+sends `/factory/*` to that page. Same cookie, same CSRF token, no CORS, no Node server or extra
+container, no Caddy change. The build output is not committed; the image runs `pnpm build` before
+`bench build`.
+
+**D-042 One new endpoint: `factory_ops.api.factory_os.boot`.** Read-only, Guest refused. Returns the
+user, roles, CSRF token, default company and currency, and the DocType permissions and reports the
+front end offers, computed with `frappe.has_permission` and `Report.is_permitted`. Used only to
+decide what to show; the server still checks every request. Everything else uses the standard
+Frappe REST API and ERPNext's own mapping methods (`FACTORY_OS_API_MAPPING.md`).
+
+**D-043 English only; Lingui removed.** Client decision (2026-11-05). The incumbent Hindi catalogue
+and the in-memory sample API were removed with it; the visual world (tokens, IBM Plex,
+framed sheet, status chips, densities) was kept and extended (`FACTORY_OS_UI_DESIGN_SYSTEM.md`).
+
+**D-044 Integration statuses are factual.** The Integration Centre shows Connected only for a
+connection that exists and works (today: the ERP itself). Marketplaces, courier, Meta and AI are
+Not implemented; GST is Not configured. No Connect buttons until connector code and verified
+credentials exist; secrets for any connector stay on the server.

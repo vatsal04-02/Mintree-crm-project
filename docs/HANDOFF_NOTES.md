@@ -1,7 +1,8 @@
 # Handoff notes
 
 Context for whoever continues this work: FlowHQ, the client, or a new Claude Code session in a fresh
-container. Last updated 2026-11-05, **during Milestone 6** (Parts A-D built and tested, Parts E-F not finished).
+container. Last updated 2026-11-05: **Factory OS React front end** built on top of the Milestone 6 state
+(Milestone 6 Parts E-F are still open; see below).
 
 ## Where things stand
 
@@ -34,6 +35,22 @@ container. Last updated 2026-11-05, **during Milestone 6** (Parts A-D built and 
 - **Milestone 6 (in progress, see the next section).**
 - **Not started (by instruction):** R&D, marketplace integrations, courier/Meta integrations, AI,
   eBMR, GST activation, a React frontend, production deployment.
+
+## Factory OS front end (latest work)
+
+- `apps/web` is the React front end again (D-040..D-044). It is served by Frappe at `/factory` on the
+  same origin as Desk; it uses the Frappe session and the standard REST API, plus one new read-only
+  endpoint `factory_ops.api.factory_os.boot` (tests: `tests/test_factory_os_api.py`).
+- All six modules work end to end in the browser as the SAMPLE role users:
+  `apps/web/e2e/run.mjs`, 36/36 checks. Docs: `FACTORY_OS_ARCHITECTURE.md` (route map),
+  `FACTORY_OS_FRONTEND_CAPABILITY_MAP.md`, `FACTORY_OS_API_MAPPING.md`,
+  `FACTORY_OS_UI_DESIGN_SYSTEM.md`, `FACTORY_OS_IMPLEMENTATION_STATUS.md` (per-module reports).
+- After a fresh container: `pnpm install` at the repo root, `cd apps/web && pnpm build`, and link
+  the assets once: `ln -sfn <repo>/apps/factory_ops/factory_ops/public <bench>/sites/assets/factory_ops`
+  (what `bench build --app factory_ops` does). The build output is git-ignored.
+- Running `git checkout` on app files as root leaves them owned by root; Frappe's developer-mode
+  test setup then cannot rewrite Number Card JSON and every test class fails in setUpClass.
+  `chown -R frappe:frappe <repo>` fixes it.
 
 ## Milestone 6: state at this handoff
 
