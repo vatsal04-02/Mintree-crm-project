@@ -5,35 +5,33 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./styles/app.css";
 
-import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { i18n } from "./i18n";
-import { routeTree } from "./routeTree.gen";
+import { FrappeError } from "./api/frappe";
+import { makeRouter } from "./router";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      staleTime: 20_000,
+      refetchOnWindowFocus: false,
+      // never retry a refusal; retry once on a network hiccup
+      retry: (n, e) => n < 1 && !(e instanceof FrappeError && e.status >= 400),
+    },
+  },
 });
 
-const router = createRouter({ routeTree, context: { queryClient }, defaultPreload: "intent" });
-
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
+const router = makeRouter(queryClient);
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
 
 createRoot(root).render(
   <StrictMode>
-    <I18nProvider i18n={i18n}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </I18nProvider>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </StrictMode>,
 );

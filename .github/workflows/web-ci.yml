@@ -1,0 +1,30 @@
+# Factory OS front end (apps/web): type check, lint, unit tests and production build.
+# The end-to-end run (apps/web/e2e/run.mjs) needs a running site with SAMPLE data and is run
+# against the development bench; see docs/FACTORY_OS_IMPLEMENTATION_STATUS.md.
+name: web
+
+on:
+  push:
+    paths: ["apps/web/**", "pnpm-lock.yaml", ".github/workflows/web-ci.yml"]
+  pull_request:
+    paths: ["apps/web/**", "pnpm-lock.yaml", ".github/workflows/web-ci.yml"]
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - working-directory: apps/web
+        run: npx tsc -b
+      - working-directory: apps/web
+        run: pnpm lint
+      - working-directory: apps/web
+        run: pnpm test
+      - working-directory: apps/web
+        run: npx vite build

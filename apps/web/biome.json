@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "files": { "includes": ["src/**", "*.ts", "!src/routeTree.gen.ts", "!src/locales/**"] },
+  "files": { "includes": ["src/**", "*.ts", "!e2e/out/**"] },
   "formatter": { "indentStyle": "space", "lineWidth": 110 },
   "linter": { "enabled": true, "rules": { "recommended": true } },
   "css": { "parser": { "tailwindDirectives": true } }
