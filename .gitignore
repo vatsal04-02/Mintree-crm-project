@@ -11,3 +11,9 @@ __pycache__/
 data/mintree_website_extraction/.cache/
 data/mintree_website_extraction/images/
 data/mintree_website_extraction/extraction.log
+
+# Factory OS front-end build output (pnpm build in apps/web)
+apps/factory_ops/factory_ops/public/factory/
+apps/factory_ops/factory_ops/www/factory.html
+apps/web/e2e/out/
+*.tsbuildinfo

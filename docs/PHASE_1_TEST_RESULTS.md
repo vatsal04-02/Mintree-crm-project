@@ -86,7 +86,7 @@ sidebar save reverted with developer mode off → the CI error ("Not Editable") 
 | CI runs 12, 13 | Setup re-saved app Sidebars on every run; Frappe v16 allows that only in developer mode or migrate. Local benches hid it (test site had developer mode on) | unchanged documents not re-saved; test site runs with developer mode off (D-036, D-039) |
 | Browser check (screenshot) | Management workspace opened with a Permission Error: "Batches Awaiting QC" filters on permlevel-1 `fo_qc_status` | level-1 read for Management Viewer; new test computes each card as each user (D-037) |
 | Review of card figures | "Batches Made (30 days)" used Frappe's "last month" = previous calendar month | "last 30 days"; test on every rolling card |
-| HTTP import check | no SAMPLE user could import items (importer uses the user's rights; none had Item Manager) | SAMPLE Master Data user (D-040) |
+| HTTP import check | no SAMPLE user could import items (importer uses the user's rights; none had Item Manager) | SAMPLE Master Data user (D-046) |
 | HTTP sales check | expected picked stock to remain available to sell | assertions updated to the stricter D-034 rule (down by the picked quantity at picking, not again at reservation) |
 | Developer-mode re-export | unchanged Number Card re-exported into the app folder (timestamp-only diff) | unchanged documents skipped; diff reverted |
 | Workspace screenshots | charts captured before their data loaded | browser check waits for the network to settle |

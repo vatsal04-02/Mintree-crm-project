@@ -1,7 +1,7 @@
 # Roles, permissions and workspaces
 
 Who can do what in Mintree Factory OS, and what each person sees on the Desk. Decisions: D-019,
-D-032, D-036, D-037, D-040. Code: `setup/install.py` (QC rights), `setup/workspaces.py`
+D-032, D-036, D-037, D-046. Code: `setup/install.py` (QC rights), `setup/workspaces.py`
 (workspaces, Management Viewer), DocType permission tables in `apps/factory_ops`.
 
 **Principle.** Access is decided by ERPNext's standard roles and permissions. factory_ops adds three

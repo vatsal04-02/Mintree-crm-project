@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "./components.css";
+@import "./layout.css";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -436,10 +438,10 @@ kbd {
 .dt th:last-child {
   padding-right: var(--card-pad);
 }
-.dt tbody tr {
+.dt tbody tr[data-clickable] {
   cursor: pointer;
 }
-.dt tbody tr:hover td {
+.dt tbody tr[data-clickable]:hover td {
   background: var(--raised);
 }
 .dt tbody tr[data-active="true"] td {
@@ -591,23 +593,6 @@ kbd {
   padding: 24px 12px;
   color: var(--muted);
   font-size: 14px;
-}
-
-/* Assistant drafts are always framed and labelled (brief §4). */
-.ai-draft {
-  border: 1px solid var(--progress-mark);
-  border-radius: var(--radius);
-  background: var(--sheet);
-}
-.ai-draft-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  color: var(--progress-ink);
-  font-size: 13px;
-  font-weight: 600;
 }
 
 /* ---------- Phone: the frame folds away and the sheet becomes the screen ---------- */

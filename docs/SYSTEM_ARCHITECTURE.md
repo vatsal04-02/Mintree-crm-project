@@ -93,7 +93,7 @@ Staging VPS: same image, one size smaller; also runs Uptime Kuma and restore dri
 | 1 | ERPNext Desk with role workspaces (QC, Stores, Production, Purchase, Sales/Dispatch, Accounts, Management) | Tablet access through the browser; comfortable density via Desk's own settings |
 | End of 1 | Spike: QC queue page in **Frappe UI (Vue 3, MIT)** tested on a shop-floor tablet | Decision recorded in `docs/decisions.md` |
 | 4+ | Shop-floor pages in Frappe UI if the spike wins: GRN scan, QC queue, material issue, pick/pack, breakdown | Served by Frappe on the same domain |
-| — | `apps/web` (React) | **Frozen as design reference only** (tokens, density, status chips, anti-slop rules). Not deployed |
+| — | `apps/web` (React) | **Factory OS front end** for daily department work, served by Frappe at `/factory` (D-040, D-041; `FACTORY_OS_ARCHITECTURE.md`) |
 
 ## 6a. factory_ops modules as built
 
@@ -112,7 +112,7 @@ setup script, HTTP acceptance script against the running dev site, Playwright br
 ```
 apps/
   factory_ops/        the Frappe app (GPL-3.0) — created in Phase 1 week 1
-  web/                frozen React design reference (not built or deployed)
+  web/                Factory OS React front end (built into factory_ops, served at /factory)
 deploy/
   apps.json           pinned app versions for the image build
   compose.override.yaml, .env.example, caddy/

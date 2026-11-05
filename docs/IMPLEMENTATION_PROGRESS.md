@@ -233,7 +233,7 @@ integrations; AI; channel price lists, schemes, delivery trips; bank reconciliat
 
 ## Milestone 6 — Master data, role workspaces and reports — **done (SAMPLE data)**
 
-Decisions D-034 to D-040. Guides: `MASTER_DATA_IMPORT_GUIDE.md`, `ROLES_AND_WORKSPACES.md`. Test
+Decisions D-034 to D-039 and D-046. Guides: `MASTER_DATA_IMPORT_GUIDE.md`, `ROLES_AND_WORKSPACES.md`. Test
 evidence: `PHASE_1_TEST_RESULTS.md` (Milestone 6 section).
 
 **Built**
@@ -257,7 +257,7 @@ evidence: `PHASE_1_TEST_RESULTS.md` (Milestone 6 section).
 - **E. Quality gates:** full suite on the development bench, on an independent clean bench and in
   CI; all earlier HTTP acceptances and browser checks re-run; new HTTP import check and workspace
   browser check.
-- **F. Documentation:** this section, D-034 to D-040, the import guide, the role / permission matrix
+- **F. Documentation:** this section, D-034 to D-039 and D-046, the import guide, the role / permission matrix
   and workspace documentation, test results, open issues, roadmap.
 
 **Found and fixed while validating Milestone 6**
@@ -267,7 +267,7 @@ evidence: `PHASE_1_TEST_RESULTS.md` (Milestone 6 section).
 | Setup re-saved every Sidebar on each run; Frappe v16 allows that only in developer mode or migrate | CI red (tests call setup); hidden locally because the test site had developer mode on | unchanged documents are not re-saved; test site runs with developer mode off (D-036, D-039) |
 | "Batches Awaiting QC" filters on permlevel-1 `fo_qc_status`; Management Viewer had only level 0 | Management workspace opened with a Permission Error (browser check) | level-1 read for Management Viewer; new test computes every card as every user (D-037) |
 | "Batches Made (30 days)" used Timespan "last month" (= previous calendar month) | this month's batches never counted | "last 30 days"; test on every rolling card |
-| No SAMPLE user held Item Manager | nobody could import items over HTTP | SAMPLE Master Data user (D-040) |
+| No SAMPLE user held Item Manager | nobody could import items over HTTP | SAMPLE Master Data user (D-046) |
 | Re-saving unchanged Number Cards in developer mode | timestamp-only diffs re-exported into the app folder | unchanged documents skipped |
 | Sales HTTP check expected picked stock to stay available | failed after Part A | assertions updated to the stricter rule: down by the picked quantity at picking, not again at reservation |
 | Workspace screenshots taken before charts loaded | empty charts in evidence | browser check waits for the network to settle |

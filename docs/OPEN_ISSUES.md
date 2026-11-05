@@ -33,7 +33,7 @@ Status 2026-11-05, after Milestone 6 (master data, role workspaces and reports).
 - **Staging / production VPS credentials** (nothing provisioned).
 - **Milestone 6 decisions for the client:**
   - who holds Management Viewer, and who maintains master data (needs Item Manager and the master
-    roles, D-040);
+    roles, D-046);
   - whether salespeople should see receivables and buyers QC-hold counts (both hidden now by
     standard permissions);
   - whether opening stock of QC items may go straight to Usable warehouses (allowed now) or must be
