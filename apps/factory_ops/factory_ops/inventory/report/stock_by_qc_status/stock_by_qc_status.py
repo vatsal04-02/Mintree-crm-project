@@ -44,6 +44,12 @@ def get_columns():
 		{"fieldname": "qc_status", "label": _("Batch QC Status"), "fieldtype": "Data", "width": 120},
 		{"fieldname": "expiry_date", "label": _("Expiry"), "fieldtype": "Date", "width": 100},
 		{"fieldname": "days_to_expiry", "label": _("Days to Expiry"), "fieldtype": "Int", "width": 100},
+		{
+			"fieldname": "dispatch_eligibility",
+			"label": _("Dispatch Eligibility"),
+			"fieldtype": "Data",
+			"width": 170,
+		},
 	]
 
 
@@ -81,8 +87,14 @@ def get_data(filters):
 		values,
 		as_dict=True,
 	)
+	from factory_ops.inventory.batch_eligibility import check_batch, min_shelf_life_days
+
 	today = nowdate()
+	min_days = min_shelf_life_days()
+	labels = {None: _("Eligible"), "expired": _("Expired"), "short_dated": _("Below minimum shelf life")}
 	for r in rows:
 		r.qty = flt(r.qty, 3)
 		r.days_to_expiry = date_diff(r.expiry_date, today) if r.expiry_date else None
+		# the same rule Available to Sell, reservations, Pick Lists and Delivery Notes use (D-034)
+		r.dispatch_eligibility = labels[check_batch(r.expiry_date, today, min_days).reason]
 	return rows

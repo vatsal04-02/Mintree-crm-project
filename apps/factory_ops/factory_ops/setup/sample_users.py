@@ -31,6 +31,7 @@ SAMPLE_USERS = {
 		None,
 	),
 	"sample.dispatch@sample.invalid": ("SAMPLE Dispatch", ["Stock User", "Delivery User"], None),
+	"sample.management@sample.invalid": ("SAMPLE Management (read only)", ["Management Viewer"], None),
 	"sample.salesmanager@sample.invalid": (
 		"SAMPLE Sales Manager",
 		["Sales Manager", "Sales User", "Stock User"],

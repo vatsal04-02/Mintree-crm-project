@@ -31,6 +31,7 @@ USER_APPROVER_HIGH = "fo-approver-high@example.com"  # limit 10,00,000
 USER_ACCOUNTS = "fo-accounts@example.com"  # Accounts User + Accounts Manager
 USER_SALES_MANAGER = "fo-sales-manager@example.com"  # Sales Manager = credit controller
 USER_DISPATCH = "fo-dispatch@example.com"  # Stock User + Delivery User (standard dispatch roles)
+USER_MANAGEMENT = "fo-management@example.com"  # Management Viewer (read and report only)
 LIMIT_LOW = 10_000
 LIMIT_HIGH = 1_000_000
 
@@ -141,6 +142,7 @@ class FactoryOpsTestCase(ERPNextTestSuite):
 		ensure_user(USER_ACCOUNTS, ["Accounts User", "Accounts Manager"])
 		ensure_user(USER_SALES_MANAGER, ["Sales Manager", "Sales User", "Stock User"])
 		ensure_user(USER_DISPATCH, ["Stock User", "Delivery User"])
+		ensure_user(USER_MANAGEMENT, ["Management Viewer"])
 		ensure_approval_limit(USER_APPROVER_LOW, LIMIT_LOW)
 		ensure_approval_limit(USER_APPROVER_HIGH, LIMIT_HIGH)
 		# the factory's Stock Settings, as on the real site, except the valuation method: ERPNext's

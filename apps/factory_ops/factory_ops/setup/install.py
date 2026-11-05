@@ -33,6 +33,9 @@ def apply_setup():
 	from factory_ops.setup.dashboards import ensure_sales_dashboard
 
 	ensure_sales_dashboard()
+	from factory_ops.setup.workspaces import ensure_workspaces
+
+	ensure_workspaces()
 	ensure_single_defaults("Factory Ops Settings")
 	frappe.clear_cache()
 
