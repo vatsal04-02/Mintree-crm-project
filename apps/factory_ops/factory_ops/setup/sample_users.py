@@ -30,6 +30,12 @@ SAMPLE_USERS = {
 		["Manufacturing User", "Manufacturing Manager", "Stock User"],
 		None,
 	),
+	"sample.dispatch@sample.invalid": ("SAMPLE Dispatch", ["Stock User", "Delivery User"], None),
+	"sample.salesmanager@sample.invalid": (
+		"SAMPLE Sales Manager",
+		["Sales Manager", "Sales User", "Stock User"],
+		None,
+	),
 	"sample.sales@sample.invalid": ("SAMPLE Sales", ["Sales User", "Stock User"], None),
 	"sample.accounts@sample.invalid": ("SAMPLE Accounts", ["Accounts User", "Accounts Manager"], None),
 }

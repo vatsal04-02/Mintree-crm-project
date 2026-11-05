@@ -11,12 +11,15 @@ WH_TYPE_USABLE = "Usable"
 WH_TYPE_REJECTED = "Rejected"
 WH_TYPE_RETAINED = "Retained Samples"
 WH_TYPE_JOB_WORK = "Job Work"
+# Finished goods that are expired or below the minimum shelf life for dispatch (Milestone 5, D-028)
+WH_TYPE_NOT_FOR_DISPATCH = "Not for Dispatch"
 FACTORY_WAREHOUSE_TYPES = (
 	WH_TYPE_QC_HOLD,
 	WH_TYPE_USABLE,
 	WH_TYPE_REJECTED,
 	WH_TYPE_RETAINED,
 	WH_TYPE_JOB_WORK,
+	WH_TYPE_NOT_FOR_DISPATCH,
 )
 
 # QC Release decisions.
@@ -49,6 +52,7 @@ WAREHOUSE_TREE = (
 	("WIP-PRODUCTION", "USABLE", WH_TYPE_USABLE, 0),
 	("REJECTED", None, WH_TYPE_REJECTED, 0),
 	("RETAINED-SAMPLES", None, WH_TYPE_RETAINED, 0),
+	("NOT-FOR-DISPATCH", None, WH_TYPE_NOT_FOR_DISPATCH, 0),
 	("JOB-WORK", None, WH_TYPE_JOB_WORK, 1),
 )
 
@@ -64,3 +68,9 @@ RELEASE_MAP = {
 	"FG-QC-HOLD": "FG-STORES",
 	"RETURNS-QC-HOLD": "FG-STORES",
 }
+
+# Sales channels on the Sales Order (Milestone 5). Marketplace orders are entered or imported by
+# hand until the Phase 7 connectors exist.
+SALES_CHANNEL_B2B = "B2B"
+D2C_CHANNELS = ("D2C Website", "D2C Marketplace", "D2C Other")
+SALES_CHANNELS = (SALES_CHANNEL_B2B, *D2C_CHANNELS)

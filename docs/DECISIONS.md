@@ -173,3 +173,64 @@ on a 100 × 60 mm page. The page size and margins must be in the Print Format's 
 Frappe's Chrome generator reads them from there and otherwise applies 15 mm margins. A standard Print
 Format is reloaded on migrate only when its `modified` timestamp changes. The QC status is printed as
 a band, white on black for HOLD and REJECTED. Barcode/QR and ZPL are Phase 4.
+
+## Milestone 5: sales, dispatch and accounts (2026-11-05)
+
+**D-026 Sales on standard ERPNext, in v16's order.** Customer, Sales Order, Stock Reservation Entry,
+Pick List, Delivery Note, Packing Slip, Sales Invoice, Payment Entry and the ERPNext receivables reports.
+In v16 a Sales Order that already holds reserved stock cannot be picked. So with a Pick List, stock
+is reserved *from the Pick List*, which pins exactly the picked batches. Without one, the order
+reserves and the Delivery Note is made from the order. Both are tested. Workflow:
+`SALES_DISPATCH_ACCOUNTS.md`.
+
+**D-027 Available to sell is computed and enforced.** Sellable = Usable warehouse, not expired, at or
+above the minimum shelf life. Available = sellable − active reservations. The report and the
+reservation check call the same function, so the number shown is the number enforced. ERPNext
+reserves only what is available. A reservation beyond it, or pinning an expired or short-dated batch,
+is refused (`sales_ops/controls.py`). A Sales Order itself may exceed stock (backorder); only
+reservation and dispatch are limited.
+
+**D-028 Minimum shelf life by segregation, not by changing ERPNext's picker.** ERPNext's FEFO, in
+reservation, Pick List and Delivery Note alike, skips expired batches but knows nothing of a minimum
+remaining shelf life. It would propose a short-dated batch first, and the dispatch guard would refuse
+the whole document. Patching ERPNext's batch picker was rejected (ERPNext is never modified). A daily
+job (and `segregate_now`) moves batches of sales items that are expired or below the minimum out of
+Usable warehouses into a new **NOT-FOR-DISPATCH** warehouse (type "Not for Dispatch") with an ordinary
+stock transfer. Stock reserved for an order is left in place, and a Delivery Note for it is refused
+with a clear message.
+
+**D-029 One stock path.** Stock leaves only through Delivery Notes. ERPNext refuses a stock-updating
+invoice made from a Delivery Note. factory_ops refuses every other stock-updating Sales Invoice,
+including Pick List → Sales Invoice, unless Factory Ops Settings allows it (off). On the real site
+Selling Settings require a Sales Order before a Delivery Note and a Delivery Note before an invoice.
+
+**D-030 Sales channel and external order number.** Sales Order fields: channel (B2B / D2C Website /
+D2C Marketplace / D2C Other) and External Order ID. D2C requires the ID. The same ID on the same
+channel cannot exist twice among non-cancelled orders, which makes re-imports harmless. The ID is
+`no_copy`, so a duplicated order does not inherit it, which also stops ERPNext's mapper. It is
+carried to the Delivery Note and Sales Invoice by a `before_validate` hook (found when the DN
+arrived without it).
+
+**D-031 A Serial and Batch Bundle counts as stock only if a stock ledger row points to it.** ERPNext
+v16 Pick Lists submit outward batch bundles that move no stock. Every factory_ops batch-balance
+query summed all submitted bundles, so picked stock looked as if it had already left (150 picked of
+200 showed 50 sellable). Affected since Milestone 2: QC Release availability, QC Queue, Stock by QC
+Status, and now available-to-sell and segregation. Fixed with one shared condition
+(`inventory/stock_queries.LEDGER_BUNDLE`, the same rule ERPNext's own balance query uses); regression
+test `test_a_pick_list_is_not_a_stock_movement`.
+
+**D-032 Roles, using ERPNext's standard roles where they exist.**
+- **Credit controller = Sales Manager.** The controller approves by submitting the order, and
+  ERPNext's Accounts Manager cannot submit Sales Orders. Client to confirm.
+- **Dispatch staff = Stock User + Delivery User.** A plain Stock User can create a Delivery Note but
+  cannot select the accounts ERPNext reads while mapping it; the standard Delivery User role can.
+  Found by the HTTP check.
+- **Data Import for Sales Manager** (read / write / create), to import D2C files; ERPNext's default
+  is System Manager only.
+
+**D-033 Dispatch record, dashboard, GST.**
+- The dispatch record is the Delivery Note's standard transporter / LR-AWB / vehicle fields plus
+  Packing Slips; a Factory Ops setting makes transporter and LR / AWB mandatory.
+- The "Sales and Dispatch" dashboard uses standard Number Cards and Charts, so each user sees only
+  cards for documents they may read.
+- No GST configuration and no GSTIN until the client's registration and the accountant's approval.

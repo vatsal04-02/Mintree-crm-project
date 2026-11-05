@@ -1,7 +1,7 @@
 # Handoff notes
 
 Context for whoever continues this work: FlowHQ, the client, or a new Claude Code session in a fresh
-container. Last updated 2026-11-05, end of Milestone 4 (production).
+container. Last updated 2026-11-05, end of Milestone 5 (sales, dispatch and accounts).
 
 ## Where things stand
 
@@ -20,7 +20,10 @@ container. Last updated 2026-11-05, end of Milestone 4 (production).
   - purchase and inventory: SAMPLE company, approval limits, GRN supplier batch/dates/COA, Stock by QC
     Status report;
   - production: SAMPLE BOMs, two-stage Work Orders, configurable production warehouses, wastage
-    write-offs, batch label (`PRODUCTION_WORKFLOW.md`).
+    write-offs, batch label (`PRODUCTION_WORKFLOW.md`);
+  - sales, dispatch and accounts: channels and D2C import, credit limits, available-to-sell, FEFO
+    pick and reservation, shelf-life segregation, dispatch records, invoices from deliveries,
+    payments, receivables, dashboard (`SALES_DISPATCH_ACCOUNTS.md`). No GST (no GSTIN).
 - **Test evidence:** `PHASE_1_TEST_RESULTS.md`.
   - 93 tests pass (77 earlier + 16 production) on the dev bench; 92 passed twice in a row on a clean,
     independent bench before the last one-test fix; a site installed from nothing has the full setup.
@@ -29,17 +32,18 @@ container. Last updated 2026-11-05, end of Milestone 4 (production).
     (production); workers and scheduler verified running jobs.
 - **Not started (by instruction):** R&D, marketplace integrations, AI.
 - **Not yet built:**
-  - sales, dispatch and accounts end to end (Milestone 5);
   - import templates, workspaces and dashboards (Milestone 6).
 
 ## Read these first
 
 1. `IMPLEMENTATION_PROGRESS.md`: what was built per milestone.
-2. `DECISIONS.md`: D-001 to D-025, the why behind every non-obvious choice (D-020 to D-025: production).
+2. `DECISIONS.md`: D-001 to D-033, the why behind every non-obvious choice (D-020 to D-025: production;
+   D-026 to D-033: sales).
 3. `OPEN_ISSUES.md`: client inputs still needed and technical gaps.
 4. `DATABASE_AND_WORKFLOW_DESIGN.md` §3: the QC workflow as implemented (spike result in §3.2a).
 5. `DEPLOYMENT_RUNBOOK.md`: how to rebuild the environment and run every check.
 6. `PRODUCTION_WORKFLOW.md`: the production flow, its configuration and what is excluded.
+7. `SALES_DISPATCH_ACCOUNTS.md`: the sales-to-cash flow, settings, controls and exclusions.
 
 ## The container is temporary
 
@@ -101,18 +105,25 @@ Session-specific details you will not need elsewhere:
   `assert_refused` in `test_production.py`), as a real failed request would roll back.
 - **Standard Print Formats** reload on migrate only when `modified` changes; label page size and margins
   must be in the format's `css` (`@page`).
+- **ERPNext v16 Pick Lists submit batch bundles that move no stock.** Count a bundle as stock only if
+  a live Stock Ledger Entry points to it (`LEDGER_BUNDLE`, D-031).
+- **ERPNext v16 reservation order:** reserve from the Pick List; an order with reserved stock cannot
+  be picked (D-026).
+- **ERPNext's FEFO ignores a minimum shelf life:** handled by segregation, not by patching (D-028).
+- **A module's files live in a folder named after the module** (`Sales Ops` → `sales_ops/`), or its
+  reports never register.
+- **Container restarts:** `dockerd` must be started again (`docker start` the six containers); the
+  benches survive on disk.
 - **`frappe.get_print` with an unknown format name** silently falls back to "Standard"; a missing format
   shows up as wrong content, not as an error.
 
-## Next task (Milestone 5: sales, dispatch and accounts)
+## Next task (Milestone 6)
 
-Not started; Milestone 4 has passed its acceptance tests. Next, per the roadmap:
-- Sales Order → Pick List (FEFO, usable stock only, already guarded) → Delivery Note → Sales Invoice
-  (SAMPLE, no GST until the client gives a GSTIN) → payment; sales returns into RETURNS-QC-HOLD.
-- Customer credit limits.
-- The end-to-end scenario purchase → QC → production → release → sale → invoice → payment → trial
-  balance, on the perpetual-inventory company, with the same stock/GL reconciliation used here.
-- Production follow-ups that are client- or phase-dependent are in `OPEN_ISSUES.md` (item 7).
+Milestone 5 has passed its acceptance tests. Next, per the roadmap:
+- master-data import templates (items, BOMs, customers, suppliers, opening stock with batches);
+- role workspaces and dashboards for each department;
+- bank statement import and reconciliation;
+- statutory GST only once the client provides the GSTIN and the accountant approves the setup.
 
 ## Waiting on the client (blocks real data and statutory setup)
 
@@ -122,6 +133,7 @@ Not started; Milestone 4 has passed its acceptance tests. Next, per the roadmap:
 - **Purchase:** approval limits per user.
 - **Masters:** real master data.
 - **Production:** real formulas, batch sizes, process loss, wastage reasons and label content.
+- **Sales:** real customers, credit limits, payment terms, channel prices, minimum shelf life for dispatch.
 - **Accountant:** chart of accounts, rounding and invoice numbering.
 - **Commercial and infrastructure:** lawyer review of the GPL position; FlowHQ day rate; staging and
   production VPS credentials.

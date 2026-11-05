@@ -31,7 +31,15 @@ ITEM_GROUPS = {
 
 SUPPLIER_GROUP = "SAMPLE Suppliers"
 SUPPLIERS = ("SAMPLE Supplier - Actives", "SAMPLE Supplier - Packaging")
-CUSTOMERS = ("SAMPLE Customer - Distributor",)
+# Customer groups for the sales channels (Milestone 5)
+CUSTOMER_GROUPS = ("Distributors", "B2B Customers", "D2C Consumers")
+# name: (customer group, credit limit per company or 0 for none). SAMPLE values, not client terms.
+CUSTOMERS = {
+	"SAMPLE Customer - Distributor": ("Distributors", 500_000),
+	"SAMPLE Customer - Retailer": ("B2B Customers", 25_000),
+	"SAMPLE D2C - Website Orders": ("D2C Consumers", 0),
+}
+SELLING_PRICES = {"SAMPLE-FG-0001": 250}  # Standard Selling, INR per unit (SAMPLE)
 
 # code: (name, group, stock uom, has_expiry_date, shelf life days)
 ITEMS = {
@@ -102,6 +110,7 @@ def setup_dev_site(company: str = SAMPLE_COMPANY, abbr: str = SAMPLE_ABBR) -> st
 	setup_company_masters(company)
 	configure_stock_settings()
 	configure_manufacturing_settings()
+	configure_selling_settings()
 	frappe.db.commit()
 	return company
 
@@ -154,8 +163,9 @@ def setup_company_masters(company: str) -> dict:
 	ensure_uoms()
 	ensure_item_groups(company)
 	ensure_suppliers()
-	ensure_customers()
+	ensure_customers(company)
 	ensure_items()
+	ensure_selling_prices()
 	ensure_wastage_reasons()
 	ensure_wastage_account(company)
 	ensure_boms(company)
@@ -229,20 +239,64 @@ def ensure_boms(company: str) -> dict[str, str]:
 	return boms
 
 
-def ensure_customers():
-	for name in CUSTOMERS:
+def ensure_customers(company: str | None = None):
+	"""Customer groups, SAMPLE customers and, when a company is given, their credit limit there."""
+	for group in CUSTOMER_GROUPS:
+		if not frappe.db.exists("Customer Group", group):
+			frappe.get_doc(
+				{
+					"doctype": "Customer Group",
+					"customer_group_name": group,
+					"parent_customer_group": "All Customer Groups",
+				}
+			).insert(ignore_permissions=True)
+	for name, (group, limit) in CUSTOMERS.items():
 		if not frappe.db.exists("Customer", name):
 			frappe.get_doc(
 				{
 					"doctype": "Customer",
 					"customer_name": name,
-					"customer_type": "Company",
+					"customer_type": "Individual" if group == "D2C Consumers" else "Company",
 					"territory": "India" if frappe.db.exists("Territory", "India") else "All Territories",
-					"customer_group": "Commercial"
-					if frappe.db.exists("Customer Group", "Commercial")
-					else "All Customer Groups",
+					"customer_group": group,
 				}
 			).insert(ignore_permissions=True)
+		doc = frappe.get_doc("Customer", name)
+		changed = doc.customer_group != group
+		doc.customer_group = group
+		if company and limit and not any(r.company == company for r in doc.credit_limits):
+			doc.append("credit_limits", {"company": company, "credit_limit": limit})
+			changed = True
+		if changed:
+			doc.save(ignore_permissions=True)
+
+
+def ensure_selling_prices():
+	price_list = "Standard Selling"
+	if not frappe.db.exists("Price List", price_list):
+		return
+	for item, rate in SELLING_PRICES.items():
+		if not frappe.db.exists("Item Price", {"item_code": item, "price_list": price_list}):
+			frappe.get_doc(
+				{
+					"doctype": "Item Price",
+					"item_code": item,
+					"price_list": price_list,
+					"price_list_rate": rate,
+				}
+			).insert(ignore_permissions=True)
+
+
+def configure_selling_settings():
+	"""Development / real-site selling rules (not applied by the test setup; tests set what they need):
+	a Delivery Note needs a Sales Order and a Sales Invoice needs a Delivery Note, so every sale
+	follows SO -> DN -> SI and stock moves once; a Sales Manager may submit an order that exceeds
+	the customer's credit limit (ERPNext's credit controller; the role must be able to submit Sales
+	Orders, which Accounts Manager cannot); dispatch details are required on Delivery Notes."""
+	frappe.db.set_single_value("Selling Settings", "so_required", "Yes")
+	frappe.db.set_single_value("Selling Settings", "dn_required", "Yes")
+	frappe.db.set_single_value("Accounts Settings", "credit_controller", "Sales Manager")
+	frappe.db.set_single_value("Factory Ops Settings", "require_dispatch_details", 1)
 
 
 def ensure_uoms():

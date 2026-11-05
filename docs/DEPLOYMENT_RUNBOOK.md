@@ -67,6 +67,26 @@ python deploy/dev/acceptance_production_http.py http://127.0.0.1:8000 factory.lo
 node deploy/dev/ui_check_production.js sites/factory.localhost/private/sample_users.json /tmp/shots <FG Work Order> <held FG batch>
 ```
 
+Sales, dispatch and accounts acceptance (Milestone 5; after the two scripts above, same site and
+credentials). It prints the documents for the browser check:
+
+```bash
+python deploy/dev/acceptance_sales_http.py http://127.0.0.1:8000 factory.localhost sites/factory.localhost/private/sample_users.json
+```
+
+```bash
+node deploy/dev/ui_check_sales.js sites/factory.localhost/private/sample_users.json /tmp/shots <Sales Order> <Delivery Note> <Sales Invoice> <Payment Entry>
+```
+
+On the development site `setup_dev_site` also applies the selling rules (SO → DN → SI required,
+dispatch details required, credit controller = Sales Manager). D2C orders are imported from
+`docs/templates/d2c_sales_orders_import.csv` with Data Import (Sales Order, Insert New Records,
+Submit after import). Short-dated stock is segregated daily; to run it now:
+
+```bash
+bench --site factory.localhost execute factory_ops.sales_ops.shelf_life.segregate_undispatchable_stock
+```
+
 Background workers and scheduler (development; production uses the frappe_docker services). Run each in
 its own terminal from the bench directory:
 

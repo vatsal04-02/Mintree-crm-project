@@ -1,5 +1,88 @@
 # Phase 1 test results
 
+## Milestone 5: sales, dispatch and accounts (2026-11-05)
+
+Every number here comes from a run in this environment. Nothing is estimated.
+
+### Before starting: Milestone 4 on the clean environment
+
+The full suite on the clean, independent bench with the final production code (commit d1c8fa0),
+after migrating: **Ran 93 tests in 143.5 s — OK**.
+
+### Summary (final code)
+
+| Layer | Where | Result |
+| --- | --- | --- |
+| Full automated suite | dev bench `test.localhost` | **Ran 114 tests in 222.6 s — OK** (93 earlier + 21 sales) |
+| Full automated suite | clean, independent bench (own MariaDB / Valkey), migrated | **Ran 114 tests in 223.8 s — OK** |
+| HTTP acceptance, sales (`acceptance_sales_http.py`) | dev site, REST, 6 SAMPLE users | **19/19** |
+| HTTP acceptance, purchase/QC (`acceptance_http.py`, updated for SO → DN) | dev site | **16/16** |
+| HTTP acceptance, production (`acceptance_production_http.py`) | dev site | **15/15** |
+| Browser, sales / dispatch / accounts (`ui_check_sales.js`) | Playwright, sales, dispatch and accounts users | **25/25**; screenshots `docs/screenshots/sales/` |
+| Browser, QC and production (`ui_check.js`, `ui_check_production.js`) | same site, after the Milestone 5 changes | **17/17**, **14/14** |
+| Lint | `ruff check` / `ruff format --check` on the app | clean |
+
+### Sales tests (`tests/test_sales.py`, 21; perpetual-inventory company)
+
+| Area | Tests |
+| --- | --- |
+| Customers, channels | `test_sample_customers_groups_and_credit_limits`, `test_d2c_orders_need_a_unique_external_order_id`: number required, duplicate refused (also with spaces), other channel allowed, freed by cancellation |
+| Available to sell, reservation | `test_available_to_sell_counts_only_released_in_date_unreserved_stock`, `test_reservation_never_exceeds_available_to_sell`: ERPNext reserves only what is available; a hand-made over-reservation is refused |
+| QC Hold / Rejected | `test_qc_hold_and_rejected_stock_cannot_be_sold_reserved_or_dispatched`: Sales Order, reservation, Delivery Note from hold and from REJECTED all refused |
+| Expired / short-dated | `test_expired_and_short_dated_batches_are_not_dispatched`, `test_short_dated_batches_are_segregated_and_never_reserved_or_picked` (refused before segregation; one transfer moves 40 short-dated + 20 expired; idempotent; FEFO then pins only good batches), `test_reserved_short_dated_stock_is_not_moved_but_cannot_be_dispatched` |
+| FEFO | `test_fefo_pick_skips_expired_and_takes_earliest_expiry_first`; `test_a_pick_list_is_not_a_stock_movement` (D-031 regression) |
+| Insufficient stock | `test_insufficient_stock_is_refused_and_writes_nothing`: DN stays draft, no ledger rows, no bundles |
+| Credit limits | `test_credit_limit_is_enforced_and_only_a_credit_controller_may_override` (30,000 vs 25,000 refused for Sales User, submitted by Sales Manager), `test_credit_limit_counts_unpaid_invoices` |
+| Stock once | `test_invoice_never_moves_stock_a_second_time`: SI from DN with stock update refused (ERPNext); stand-alone stock-updating SI and Pick List → SI refused (factory_ops); invoice moves nothing; second invoice for the same DN refused |
+| Dispatch | `test_dispatch_details_are_required`; Packing Slip and Dispatch Register in `test_dashboard_and_reports` |
+| Permissions | `test_permissions`: QC cannot create Sales Orders; Sales cannot record payments; Stores cannot invoice |
+| Dashboard / reports | `test_dashboard_and_reports`: all 6 number cards evaluate; Dispatch Register row (transporter, LR, packages, qty, batches) |
+| End to end | `test_released_stock_to_cash_with_reconciliation`, `test_order_reservation_then_delivery_without_pick_list` |
+| Duplicates | `test_duplicate_submissions_change_nothing`: re-submitting SO, Pick List, DN, SI and PE through the API, re-reserving, and delivering the order again change nothing |
+| Cancellations | `test_cancellations_unwind_in_order_and_reconcile`: DN refused while invoiced; PE → SI → DN cancel in order; ledger and GL fully reversed; order back to 0 % delivered; stock = GL |
+
+### End-to-end figures (test; the HTTP run gives the same results)
+
+| Stage | Stock ledger | GL / balances |
+| --- | --- | --- |
+| Released FG: batch A 100 (expiry +300 d), batch B 100 (+700 d); 50 held | — | — |
+| Sales Order 150 × 250.00 | none | none; credit limit 5,00,000 respected |
+| Pick List | none | FEFO: A 100, then B 50; held batch never proposed |
+| Reservation from the Pick List | none | available to sell −150 |
+| Delivery Note + Packing Slip + LR | FG-STORES −100 (A), −50 (B), once | Stock Cr 15,000 / COGS Dr 15,000; reservation Delivered |
+| Sales Invoice from DN | none | Debtors Dr 37,500 / Sales Cr 37,500; AR outstanding 37,500 |
+| Payment 20,000 | none | outstanding 17,500 (AR report too) |
+| Payment 17,500 | none | outstanding 0, status Paid; AR has no row |
+| Reconciliation | — | customer ledger back to its opening balance; Σ stock ledger value = Σ stock-account GL |
+
+HTTP run on the dev site: customer ledger **500.00 = open invoices 500.00** (an imported website
+order shipped and left unpaid on purpose); **stock ledger 108,550.00 = stock accounts 108,550.00**.
+
+### Failures found and fixed in Milestone 5
+
+| Found by | Problem | Fix | Regression check |
+| --- | --- | --- | --- |
+| First sales run (12 of 16 failed) | ERPNext v16 refuses a Pick List for an order with reserved stock | reserve from the Pick List (D-026) | E2E, duplicate, cancellation tests |
+| same | ERPNext's FEFO pins short-dated batches | shelf-life segregation (D-028) | `test_short_dated_batches_are_segregated_and_never_reserved_or_picked` |
+| same | ERPNext refuses to receive an already-expired batch | tests age batches instead | expiry tests |
+| same | Accounts Manager cannot submit Sales Orders | credit controller = Sales Manager (D-032) | credit-limit test, HTTP check 2–3 |
+| Second run | **Pick List bundles counted as stock movements** by factory_ops balances (pre-existing since Milestone 2) | `LEDGER_BUNDLE` (D-031) | `test_a_pick_list_is_not_a_stock_movement`; 114 tests |
+| same | external order ID lost on the DN (`no_copy`) | carried by a hook (D-030) | `test_order_reservation_then_delivery_without_pick_list`, HTTP check 17 |
+| same | reserved batch turned short-dated: ERPNext "Serial and Batch Bundle None not found" | clear refusal at validate | `test_reserved_short_dated_stock_is_not_moved_but_cannot_be_dispatched` |
+| same | own test: `rollback()` wiped the test transaction | savepoints | duplicate test |
+| Migrate | reports not registered: module folder must be `sales_ops/` | package renamed | reports present on both benches |
+| HTTP run | Stock User cannot select accounts → dispatch user could not create a DN | Delivery User role (D-032) | HTTP checks 8–9; tests deliver as Stock User + Delivery User |
+| HTTP run | Data Import is System Manager only | granted to Sales Manager (D-032) | HTTP checks 15–16 |
+| HTTP run | stores may not edit a batch's expiry (correct) | script creates batches with expiry | — |
+| HTTP run | receivable reconciliation compared 0.00 with 0.00 | an unpaid order is left on purpose; check requires > 0 | HTTP check 18 |
+| Browser | order numbers not in the order list; sales cannot see receivable cards | External Order ID in list view; receivables checked as accounts user | UI checks "D2C website orders listed…", "receivables cards hidden from a salesperson", "accounts see receivables on the dashboard" |
+| Re-running Milestone 3 HTTP | DN without Sales Order now refused (SO → DN rule) | script follows SO → DN; shelf-life refusal still after ledger rows | `acceptance_http.py` 16/16 |
+
+CI on GitHub Actions for this milestone: CI_M5_PENDING.
+
+---
+
+
 ## Milestone 4: production (2026-11-05)
 
 Every number here comes from a run in this session's rebuilt environment. Nothing is estimated.

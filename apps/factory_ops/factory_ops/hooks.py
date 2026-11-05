@@ -24,6 +24,7 @@ before_uninstall = "factory_ops.setup.install.before_uninstall"
 _guard = "factory_ops.inventory.guards"
 _recv = "factory_ops.inventory.receiving"
 _prod = "factory_ops.production.controls"
+_sales = "factory_ops.sales_ops.controls"
 
 doc_events = {
 	"Item": {
@@ -55,14 +56,19 @@ doc_events = {
 		"before_submit": f"{_guard}.validate_purchase_receipt",
 	},
 	"Delivery Note": {
-		"validate": f"{_guard}.validate_outward_sales_doc",
-		"before_submit": f"{_guard}.validate_outward_sales_doc",
+		"before_validate": f"{_sales}.inherit_sales_channel",
+		"validate": [
+			f"{_guard}.validate_outward_sales_doc",
+			f"{_sales}.validate_reserved_batches_dispatchable",
+		],
+		"before_submit": [f"{_guard}.validate_outward_sales_doc", f"{_sales}.validate_dispatch_details"],
 		# batches may be auto-selected (FEFO) during submit, so G6 runs again once bundles exist
 		"on_submit": f"{_guard}.validate_shelf_life",
 	},
 	"Sales Invoice": {
-		"validate": f"{_guard}.validate_outward_sales_doc",
-		"before_submit": f"{_guard}.validate_outward_sales_doc",
+		"before_validate": f"{_sales}.inherit_sales_channel",
+		"validate": [f"{_guard}.validate_outward_sales_doc", f"{_sales}.validate_invoice_stock_path"],
+		"before_submit": [f"{_guard}.validate_outward_sales_doc", f"{_sales}.validate_invoice_stock_path"],
 		# batches may be auto-selected (FEFO) during submit, so G6 runs again once bundles exist
 		"on_submit": f"{_guard}.validate_shelf_life",
 	},
@@ -74,12 +80,15 @@ doc_events = {
 		"before_submit": f"{_guard}.validate_pick_list",
 	},
 	"Sales Order": {
-		"validate": f"{_guard}.validate_sales_order",
+		"validate": [f"{_guard}.validate_sales_order", f"{_sales}.validate_sales_channel"],
 		"before_submit": f"{_guard}.validate_sales_order",
 	},
 	"Stock Reservation Entry": {
 		"validate": f"{_guard}.validate_stock_reservation",
-		"before_submit": f"{_guard}.validate_stock_reservation",
+		"before_submit": [
+			f"{_guard}.validate_stock_reservation",
+			f"{_sales}.validate_reservation_is_sellable",
+		],
 	},
 	"Work Order": {
 		"before_validate": f"{_prod}.set_work_order_header_defaults",
@@ -112,7 +121,10 @@ doc_events = {
 }
 
 scheduler_events = {
-	"daily": ["factory_ops.quality.batch_status.nightly_consistency_check"],
+	"daily": [
+		"factory_ops.quality.batch_status.nightly_consistency_check",
+		"factory_ops.sales_ops.shelf_life.segregate_undispatchable_stock",
+	],
 }
 
 # Exported configuration that is edited in Desk and then version-controlled.

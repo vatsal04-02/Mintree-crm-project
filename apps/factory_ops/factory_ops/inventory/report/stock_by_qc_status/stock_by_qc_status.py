@@ -10,6 +10,8 @@ import frappe
 from frappe import _
 from frappe.utils import date_diff, flt, nowdate
 
+from factory_ops.inventory.stock_queries import LEDGER_BUNDLE
+
 
 def execute(filters=None):
 	filters = frappe._dict(filters or {})
@@ -49,6 +51,7 @@ def get_data(filters):
 	conditions = [
 		"sbb.docstatus = 1",
 		"sbb.is_cancelled = 0",
+		LEDGER_BUNDLE,
 		"sbe.batch_no is not null",
 		"w.company = %(company)s",
 	]

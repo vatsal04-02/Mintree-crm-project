@@ -30,6 +30,9 @@ def apply_setup():
 	create_custom_fields(CUSTOM_FIELDS, ignore_validate=True, update=True)
 	grant_qc_permissions()
 	create_stock_entry_types()
+	from factory_ops.setup.dashboards import ensure_sales_dashboard
+
+	ensure_sales_dashboard()
 	ensure_single_defaults("Factory Ops Settings")
 	frappe.clear_cache()
 
@@ -108,6 +111,10 @@ QC_DOCPERMS = (
 	# ERPNext checks the session user's rights on them. Same rights as Stock User has.
 	("Serial and Batch Bundle", ROLE_QC_OFFICER, ("read", "create", "write", "submit", "cancel")),
 	("Serial and Batch Bundle", ROLE_QA_MANAGER, ("read", "create", "write", "submit", "cancel")),
+	# Milestone 5: sales operations import manually collected D2C / marketplace orders with Data
+	# Import (ERPNext allows only System Managers by default). Importing still needs Sales Order
+	# create rights, and the duplicate-order rule applies to every imported row.
+	("Data Import", "Sales Manager", ("read", "write", "create")),
 )
 
 # Read access to permlevel-1 fields (Batch.fo_qc_status). Nobody is given write at

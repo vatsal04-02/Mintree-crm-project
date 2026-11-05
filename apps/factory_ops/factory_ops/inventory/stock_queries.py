@@ -9,6 +9,15 @@ from frappe.utils import flt
 
 from factory_ops.constants import WH_TYPE_QC_HOLD, WH_TYPE_REJECTED
 
+# A Serial and Batch Bundle is a stock movement only if a live stock ledger row points to it.
+# ERPNext v16 Pick Lists submit bundles of their own (outward, docstatus 1) that move no stock;
+# summing every submitted bundle made picked stock look as if it had already left (D-031).
+# Use in a query that aliases `tabSerial and Batch Bundle` as `sbb`.
+LEDGER_BUNDLE = (
+	"exists (select 1 from `tabStock Ledger Entry` sle"
+	" where sle.serial_and_batch_bundle = sbb.name and sle.is_cancelled = 0)"
+)
+
 
 def warehouse_type(warehouse: str | None) -> str | None:
 	if not warehouse:
@@ -36,11 +45,11 @@ def is_restricted(warehouse: str | None) -> bool:
 
 def batch_qty_by_warehouse(batch_no: str) -> dict[str, float]:
 	rows = frappe.db.sql(
-		"""
+		f"""
 		select sbe.warehouse, sum(sbe.qty) as qty
 		from `tabSerial and Batch Entry` sbe
 		inner join `tabSerial and Batch Bundle` sbb on sbb.name = sbe.parent
-		where sbe.batch_no = %s and sbb.docstatus = 1 and sbb.is_cancelled = 0
+		where sbe.batch_no = %s and sbb.docstatus = 1 and sbb.is_cancelled = 0 and {LEDGER_BUNDLE}
 		group by sbe.warehouse
 		""",
 		(batch_no,),

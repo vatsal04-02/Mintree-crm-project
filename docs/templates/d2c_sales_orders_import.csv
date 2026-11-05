@@ -1,0 +1,3 @@
+Customer,Sales Channel,External Order ID,Date,Delivery Date,Company,Set Source Warehouse,Item Code (Items),Quantity (Items),Rate (Items),Delivery Date (Items)
+SAMPLE D2C - Website Orders,D2C Website,SAMPLE-WEB-0001,2026-11-05,2026-11-08,SAMPLE Mintree Manufacturing,FG-STORES - SMM,SAMPLE-FG-0001,2,250,2026-11-08
+SAMPLE D2C - Website Orders,D2C Marketplace,SAMPLE-MKT-0001,2026-11-05,2026-11-09,SAMPLE Mintree Manufacturing,FG-STORES - SMM,SAMPLE-FG-0001,1,250,2026-11-09

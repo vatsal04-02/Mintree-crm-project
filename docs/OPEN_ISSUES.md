@@ -1,6 +1,6 @@
 # Open issues
 
-Status 2026-11-05, after Milestone 4 (production).
+Status 2026-11-05, after Milestone 5 (sales, dispatch and accounts).
 
 ## Needs the client
 - **Legal entity, GSTIN, state.** Company setup on a real site, India Compliance, any tax invoice. The
@@ -13,6 +13,10 @@ Status 2026-11-05, after Milestone 4 (production).
 - **Real master data** in the import templates (items, suppliers, UOMs, warehouses, opening stock).
 - **Production:** real formulas and batch sizes (BOMs), expected process loss per product, the wastage
   reason list, which account wastage posts to, and the label size and content (SAMPLE: 100 × 60 mm).
+- **Sales:** real customers and distributors, credit limits and payment terms, price lists per
+  channel, the minimum remaining shelf life for dispatch (setting is 0), who approves credit-limit
+  breaches (SAMPLE: Sales Manager), whether salespeople may see receivables, the dispatch record
+  fields required (SAMPLE: transporter + LR/AWB).
 - **Accountant:** chart of accounts, rounding method, row-wise GST rounding, invoice numbering, e-invoice threshold.
 - **Lawyer:** GPL conveying and `factory_ops` licence wording.
 - **FlowHQ day rate** (Phase 1 scope).
@@ -47,6 +51,19 @@ Status 2026-11-05, after Milestone 4 (production).
     order, so a short fill must be closed before its leftovers can go back to stores (tested).
 11. **Docker Hub rate limit.** Pulling `mariadb` / `valkey` anonymously can fail with HTTP 429; the
     runbook gives the mirror workaround (development only).
+12. **GST not configured** (no GSTIN, none invented). Development invoices are not tax documents.
+    India Compliance, tax templates, HSN codes, e-invoice / e-way bill only after registration
+    and the accountant's sign-off.
+13. **Marketplace and courier integrations** are not built (Phase 5/7). Orders are entered or imported
+    by hand; AWB numbers are typed.
+14. **Shelf-life segregation runs daily.** If the minimum shelf life is raised during the day, run
+    `segregate_now` (Stock Manager) or a Pick List may propose a now-short-dated batch and be refused.
+15. **Pre-existing lint warnings** in `deploy/dev/acceptance_http.py` (semicolons; dev script, not in CI lint).
+
+## Closed in Milestone 5
+- Sales, dispatch and accounts on standard ERPNext with factory_ops controls (`SALES_DISPATCH_ACCOUNTS.md`).
+- Pick List batch bundles were counted as stock movements by factory_ops balance queries (D-031),
+  fixed with a regression test.
 
 ## Closed in Milestone 4
 - Workers and scheduler run as processes in development: a job enqueued to the worker finished, the

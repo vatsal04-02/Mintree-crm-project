@@ -6,6 +6,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime, time_diff_in_hours
 
+from factory_ops.inventory.stock_queries import LEDGER_BUNDLE
+
 SLA_FIELD_BY_PREFIX = (
 	("RM-", "qc_sla_hours_rm"),
 	("PM-", "qc_sla_hours_pm"),
@@ -64,7 +66,7 @@ def get_columns():
 
 
 def get_data(filters):
-	conditions = ["w.warehouse_type = 'QC Hold'", "sbb.docstatus = 1", "sbb.is_cancelled = 0"]
+	conditions = ["w.warehouse_type = 'QC Hold'", "sbb.docstatus = 1", "sbb.is_cancelled = 0", LEDGER_BUNDLE]
 	values = {}
 	if filters.company:
 		conditions.append("w.company = %(company)s")

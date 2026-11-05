@@ -76,6 +76,7 @@ approver = Client("sample.approver@sample.invalid", CREDS["sample.approver@sampl
 stores = Client("sample.stores@sample.invalid", CREDS["sample.stores@sample.invalid"])
 qc = Client("sample.qc@sample.invalid", CREDS["sample.qc@sample.invalid"])
 qa = Client("sample.qa@sample.invalid", CREDS["sample.qa@sample.invalid"])
+sales = Client("sample.sales@sample.invalid", CREDS["sample.sales@sample.invalid"])
 
 
 def sle_count(client, voucher):
@@ -182,13 +183,21 @@ ok(qc.s.put(f"{BASE}/api/resource/Quality Inspection/{qi3}", json=doc), "save QI
 ok(qc.submit("Quality Inspection", qi3), "submit QI3")
 ok(qc.submit("QC Release", fg_rel["name"]), "release FG")
 
-ok(qa.call("frappe.client.set_value", doctype="Factory Ops Settings", name="Factory Ops Settings",
-	fieldname="min_shelf_life_days_for_dispatch", value=5000), "set shelf life")
 try:
-	dn = ok(stores.insert({
-		"doctype": "Delivery Note", "company": COMPANY, "customer": "SAMPLE Customer - Distributor",
-		"items": [{"item_code": FG, "qty": 5, "rate": 100, "warehouse": FG_STORES}],  # batch picked FEFO on submit
-	}), "DN draft")
+	# Milestone 5 rules apply on the dev site: a Delivery Note comes from a Sales Order and carries
+	# dispatch details, so the only reason left to refuse it is the shelf life
+	so = ok(sales.insert({
+		"doctype": "Sales Order", "company": COMPANY, "customer": "SAMPLE Customer - Distributor",
+		"delivery_date": str(TODAY + timedelta(days=3)), "set_warehouse": FG_STORES,
+		"items": [{"item_code": FG, "qty": 5, "rate": 100, "warehouse": FG_STORES}],
+	}), "SO for shelf-life check")
+	ok(sales.submit("Sales Order", so["name"]), "submit SO")
+	dn = ok(stores.call("erpnext.selling.doctype.sales_order.sales_order.make_delivery_note", source_name=so["name"]), "map DN")
+	dn.update({"transporter_name": "SAMPLE Transport Co", "lr_no": "SAMPLE-LR-SHELF"})
+	dn = ok(stores.insert(dn), "DN draft")
+	# raise the minimum only now, so the refusal comes on submit, after ERPNext has written ledger rows
+	ok(qa.call("frappe.client.set_value", doctype="Factory Ops Settings", name="Factory Ops Settings",
+		fieldname="min_shelf_life_days_for_dispatch", value=5000), "set shelf life")
 	r = stores.submit("Delivery Note", dn["name"])
 	check("dispatch below minimum shelf life refused (HTTP)", refused(r) and "shelf life" in r.text, f"HTTP {r.status_code}")
 	check("failed submit left the Delivery Note as draft", stores.get("Delivery Note", dn["name"])["docstatus"] == 0)

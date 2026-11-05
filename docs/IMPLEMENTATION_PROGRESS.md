@@ -170,6 +170,67 @@ DEPLOYMENT_RUNBOOK.md, docs/screenshots/production/*.png
 rework orders, electronic batch record, operations/job cards, Production Plan/MRP configuration,
 real formulas.
 
+## Milestone 5 — Sales, dispatch and accounts — **done (SAMPLE data, no GST), acceptance tests pass**
+
+Workflow, settings and controls: `SALES_DISPATCH_ACCOUNTS.md`. Decisions D-026 to D-033. Test evidence:
+`PHASE_1_TEST_RESULTS.md` (Milestone 5 section).
+
+**Built (standard ERPNext selling + factory_ops controls)**
+- Customers and distributors: customer groups Distributors / B2B Customers / D2C Consumers, SAMPLE
+  customers with per-company credit limits, a SAMPLE selling price.
+- Sales Orders with **sales channel** and **external order number**. D2C orders need the number, and
+  a duplicate on the same channel is refused. Both carry to the DN and invoice. D2C import template
+  (`docs/templates/d2c_sales_orders_import.csv`) through standard Data Import.
+- **Credit limits:** ERPNext's check, credit controller = Sales Manager.
+- **Available to Sell** (report + enforcement on reservation): Usable, in date, at or above the
+  minimum shelf life, minus reservations.
+- **Reservation** only of released, sellable stock; FEFO **Pick Lists**; reservation of picked batches.
+- **Shelf-life segregation** (daily + on demand) into a new NOT-FOR-DISPATCH warehouse, so FEFO never
+  proposes short-dated stock; reserved stock that turns short-dated is refused at dispatch with a clear message.
+- **Dispatch:** Delivery Note with transporter / LR-AWB / vehicle (required by setting), Packing
+  Slips, **Dispatch Register** report.
+- **One stock path:** Sales Invoices from Delivery Notes only, no stock update; Selling Settings require
+  SO → DN → SI.
+- **Payment Entries**, standard Accounts Receivable / Summary.
+- **Sales and Dispatch** dashboard (6 number cards, 4 weekly charts).
+- SAMPLE users: dispatch (Stock User + Delivery User), sales manager; Data Import for Sales Manager.
+
+**Found and fixed while validating**
+
+| Problem | Effect | Fix |
+| --- | --- | --- |
+| ERPNext v16 Pick Lists submit batch bundles that move no stock; factory_ops balance queries counted them | picked stock looked already gone (150 picked of 200 → 50 sellable); affected QC Release, QC Queue, Stock by QC Status since Milestone 2 | balances count only bundles with a live stock-ledger row (D-031) |
+| v16 refuses a Pick List for an order with reserved stock | planned "reserve then pick" impossible | reserve from the Pick List (D-026) |
+| FEFO ignores minimum shelf life (reservation, Pick List, DN) | short-dated batch picked first, whole document refused | daily shelf-life segregation (D-028) |
+| Reserved batch becomes short-dated | ERPNext failed inside its reservation update with "Serial and Batch Bundle None not found" | refused at validate with a clear message |
+| External order ID is `no_copy` | lost on the DN made from the order | carried by a hook (D-030) |
+| Accounts Manager cannot submit Sales Orders | could not act as credit controller | Sales Manager (D-032) |
+| Stock User cannot select accounts | dispatch user could not create a DN (HTTP check) | standard Delivery User role (D-032) |
+| Data Import is System Manager only | sales could not import D2C orders | granted to Sales Manager (D-032) |
+| Module folder must match module name | reports not registered | package `sales_ops/` |
+| Milestone 3 HTTP script made a DN without a Sales Order | refused under the new SO → DN rule | script follows SO → DN, still tests rollback after ledger rows |
+
+**Files**
+```
+apps/factory_ops/factory_ops/
+  sales_ops/controls.py               channel / duplicate orders, sellable reservation, one stock path, dispatch details,
+                                      channel carried to DN/SI, reserved-batch dispatch check
+  sales_ops/available_to_sell.py      sellable / reserved / available per item and warehouse
+  sales_ops/shelf_life.py             segregation to NOT-FOR-DISPATCH (daily, on demand)
+  sales_ops/report/available_to_sell/, sales_ops/report/dispatch_register/
+  setup/dashboards.py                 Sales and Dispatch dashboard
+  setup/{custom_fields,install,sample_company,sample_users}.py, constants.py, hooks.py, modules.txt
+  inventory/stock_queries.py (+ qc_queue, stock_by_qc_status)   LEDGER_BUNDLE fix (D-031)
+  factory_ops/doctype/factory_ops_settings/   dispatch details, invoice stock update settings
+  tests/test_sales.py                 21 tests; tests/utils.py users
+deploy/dev/acceptance_sales_http.py   HTTP acceptance (19 checks); acceptance_http.py updated
+deploy/dev/ui_check_sales.js          browser check (25 checks)
+docs/SALES_DISPATCH_ACCOUNTS.md, docs/templates/d2c_sales_orders_import.csv, docs/screenshots/sales/
+```
+
+**Not included:** GST / India Compliance / e-invoice / e-way bill (no GSTIN); marketplace and courier
+integrations; AI; channel price lists, schemes, delivery trips; bank reconciliation (Milestone 6).
+
 ## Next milestones
-5. Sales, dispatch and accounts, and the end-to-end GL-reconciling test.
-6. Master-data import templates, role workspaces, reports.
+6. Master-data import templates, role workspaces, reports; bank statement import and reconciliation.
+7. Statutory setup once the client provides GSTIN and accountant-approved details; staging deployment.
