@@ -58,8 +58,8 @@ named report; nothing is simulated.
 
 ## Brand Commitments
 - Name: Mintree Factory OS.
-- The framed-sheet visual world in this folder (tokens, IBM Plex, status chips, density modes) was
-  kept and extended (client decision, 2026-11-05). See DESIGN.md.
+- Visual world: the frame of ERPNext v16 Desk (icon rail + module panel, Inter, neutral greys),
+  chosen by the client on 2026-11-05 after the first "framed sheet" build read as generic. See DESIGN.md.
 
 ## Evidence on Hand
 - Real backend workflows with tests (152 automated tests) and SAMPLE data on the development site.

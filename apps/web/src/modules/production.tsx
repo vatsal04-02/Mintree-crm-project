@@ -3,7 +3,16 @@ import { ArrowRightLeft, Factory, Send } from "lucide-react";
 import { useState } from "react";
 import { insert, mapDoc, type Row, submit } from "@/api/frappe";
 import { can, useSession } from "@/api/session";
-import { ActionButton, ChildTable, DocFrame, ListPage, useAction, useDoc, useList } from "@/components/doc";
+import {
+  ActionButton,
+  ChildTable,
+  DocFrame,
+  ListPage,
+  RefLink,
+  useAction,
+  useDoc,
+  useList,
+} from "@/components/doc";
 import { LinkField, NumberField } from "@/components/fields";
 import { ReportView } from "@/components/ReportView";
 import { ErrorNote, Facts, Note, PageHeader, Panel, StatusChip } from "@/components/ui";
@@ -181,12 +190,7 @@ export function WorkOrderPage() {
             <Facts
               items={[
                 ["Item", `${String(doc.production_item)} · ${String(doc.item_name ?? "")}`],
-                [
-                  "BOM",
-                  <span className="mono" key="bom">
-                    {String(doc.bom_no)}
-                  </span>,
-                ],
+                ["BOM", <RefLink key="bom" doctype="BOM" name={doc.bom_no} />],
                 ["Planned", formatQty(planned, doc.stock_uom)],
                 ["Materials issued for", formatQty(issued, doc.stock_uom)],
                 ["Produced", formatQty(produced, doc.stock_uom)],
@@ -264,7 +268,15 @@ export function WorkOrderPage() {
               ]}
             />
           </Panel>
-          <Panel title="Stock entries" flush>
+          <Panel
+            title="Stock entries"
+            flush
+            actions={
+              <Link className="btn btn-sm btn-ghost" to="/procurement/requirements">
+                Material requirements
+              </Link>
+            }
+          >
             <ChildTable
               label="Stock entries for this work order"
               rows={entries.data}
@@ -322,7 +334,7 @@ export function RequirementsReport() {
     <ReportView
       report="RM PM Requirements"
       title="RM / PM requirements"
-      crumbs={[{ label: "Supply Chain" }]}
+      crumbs={[{ label: "Buying" }]}
       filters={{ company: boot.company }}
     />
   );

@@ -7,8 +7,10 @@ import { can, useSession } from "@/api/session";
 import {
   ActionButton,
   ChildTable,
+  Connections,
   DocFrame,
   ListPage,
+  RefLink,
   RowsEditor,
   useAction,
   useDoc,
@@ -18,8 +20,9 @@ import { ReportView } from "@/components/ReportView";
 import { ErrorNote, Facts, Note, PageHeader, Panel, StatusChip } from "@/components/ui";
 import { takeDraft } from "@/lib/drafts";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
+import { routeFor } from "@/nav";
 
-const C = { label: "Supply Chain" };
+const C = { label: "Stock" };
 const enc = encodeURIComponent;
 
 /* ======================= Stock by QC Status ======================= */
@@ -354,7 +357,7 @@ export function MovementPage() {
               items={[
                 ["Type", String(doc.stock_entry_type)],
                 ["Posting date", formatDate(doc.posting_date)],
-                ["Work order", String(doc.work_order ?? "—")],
+                ["Work order", <RefLink key="wo" doctype="Work Order" name={doc.work_order} />],
                 ["Process loss", doc.process_loss_qty ? formatQty(doc.process_loss_qty) : "—"],
                 [
                   "Value",
@@ -379,11 +382,12 @@ export function MovementPage() {
                 {
                   key: "batch_no",
                   label: "Batch",
-                  render: (r) => (
-                    <span className="mono">
-                      {String(r.batch_no || (r.serial_and_batch_bundle ? "in bundle" : "—"))}
-                    </span>
-                  ),
+                  render: (r) =>
+                    r.batch_no ? (
+                      <RefLink doctype="Batch" name={r.batch_no} />
+                    ) : (
+                      <span className="dim">{r.serial_and_batch_bundle ? "in bundle" : "—"}</span>
+                    ),
                 },
                 {
                   key: "fo_wastage_reason",
@@ -394,6 +398,26 @@ export function MovementPage() {
             />
           </Panel>
           {doc.docstatus === 1 && doc.purpose === "Manufacture" && <OutputBatches doc={doc} />}
+          <Connections
+            items={[
+              ...(doc.work_order
+                ? [
+                    {
+                      label: "Work Order",
+                      doctype: "Work Order",
+                      filters: { name: String(doc.work_order) },
+                      route: (n: string) => routeFor("Work Order", n),
+                    },
+                  ]
+                : []),
+              {
+                label: "QC Releases",
+                doctype: "QC Release",
+                filters: { stock_entry: name },
+                route: (n) => routeFor("QC Release", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
@@ -423,7 +447,7 @@ function OutputBatches({ doc }: { doc: Doc }) {
       <div className="inline-list">
         {data.map((b) => (
           <span key={b.batch} className="inline-item">
-            <span className="mono">{b.batch}</span>
+            <RefLink doctype="Batch" name={b.batch} />
             <span className="dim">in {b.warehouse}</span>
             <a
               className="btn btn-sm"

@@ -93,6 +93,7 @@ const routeTree = root.addChildren([
     page("/sales/orders", sales.SalesOrderList),
     page("/sales/orders/new", sales.SalesOrderNew),
     page("/sales/orders/$name", sales.SalesOrderPage),
+    page("/sales/pick-lists", sales.PickListList),
     page("/sales/pick-lists/$name", sales.PickListPage),
     page("/sales/deliveries", sales.DeliveryList),
     page("/sales/deliveries/$name", sales.DeliveryPage),

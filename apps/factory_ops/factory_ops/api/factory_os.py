@@ -18,7 +18,7 @@ DOCTYPES = (
 	"Material Request", "Purchase Order", "Purchase Receipt", "Supplier", "Item", "Batch",
 	"Stock Entry", "Warehouse", "Work Order", "BOM", "QC Release", "Quality Inspection",
 	"QC Deviation", "QC Retest", "Sales Order", "Pick List", "Delivery Note", "Packing Slip",
-	"Sales Invoice", "Payment Entry", "Customer", "Purchase Invoice",
+	"Sales Invoice", "Payment Entry", "Customer", "Purchase Invoice", "Journal Entry",
 )
 REPORTS = (
 	"Stock by QC Status", "QC Queue", "Available to Sell", "Dispatch Register",
@@ -26,6 +26,15 @@ REPORTS = (
 	"Stock Balance", "General Ledger",
 )
 PTYPES = ("read", "create", "write", "submit", "cancel")
+
+
+def report_usable(report: str) -> bool:
+	"""The checks Frappe makes before running a query report: the report's roles, then report
+	permission on its reference DocType."""
+	if not frappe.db.exists("Report", report):
+		return False
+	doc = frappe.get_doc("Report", report)
+	return doc.is_permitted() and (not doc.ref_doctype or bool(frappe.has_permission(doc.ref_doctype, "report")))
 
 
 @frappe.whitelist(methods=["GET"])
@@ -40,7 +49,7 @@ def boot() -> dict:
 		for dt in DOCTYPES
 		if frappe.db.exists("DocType", dt)
 	}
-	reports = [r for r in REPORTS if frappe.db.exists("Report", r) and frappe.get_doc("Report", r).is_permitted()]
+	reports = [r for r in REPORTS if report_usable(r)]
 	company = frappe.defaults.get_user_default("Company") or frappe.db.get_single_value(
 		"Global Defaults", "default_company"
 	)

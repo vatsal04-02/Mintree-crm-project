@@ -236,8 +236,10 @@ try {
   await sales.page.locator(".page-title .chip", { hasText: "To Deliver and Bill" }).waitFor();
   check("sales user creates and submits a sales order in React", (await sales.doc("Sales Order", so)).docstatus === 1, so);
 
-  await go(stores, `/sales/orders/${so}`);
+  // started from the Pick Lists list, through its "pick a sales order" picker
+  await go(stores, "/sales/pick-lists");
   await click(stores.page, "Create pick list");
+  await stores.page.getByRole("dialog").getByRole("row").filter({ hasText: so }).click();
   const pl = await docName(stores.page, "/sales/pick-lists");
   await click(stores.page, "Reserve picked batches");
   await stores.page.getByRole("table", { name: "Stock reservations" }).getByRole("row").nth(1).waitFor();
@@ -267,8 +269,10 @@ try {
 
   /* ============ 6. Accounts: invoice from DN, payment ============ */
   const acc = await as("sample.accounts@sample.invalid");
-  await go(acc, `/sales/deliveries/${dn}`);
+  // started from the Sales Invoices list, through its "invoice a delivery" picker
+  await go(acc, "/accounts/invoices");
   await click(acc.page, "Create invoice");
+  await acc.page.getByRole("dialog").getByRole("row").filter({ hasText: dn }).click();
   const si = await docName(acc.page, "/accounts/invoices");
   await click(acc.page, "Submit invoice");
   await acc.page.getByRole("button", { name: "Record payment" }).waitFor();
@@ -288,7 +292,10 @@ try {
 
   /* ============ 7. Management viewer: read only ============ */
   const mgmt = await as("sample.management@sample.invalid");
-  check("management viewer has no New menu", (await mgmt.page.getByRole("button", { name: "New" }).count()) === 0);
+  check(
+    "management viewer has no Create section anywhere",
+    (await mgmt.page.locator(".panel-nav").getByRole("button", { name: "Create" }).count()) === 0,
+  );
   await go(mgmt, `/sales/orders/${so}`);
   await mgmt.page.locator(".page-title .chip").waitFor();
   check("management viewer sees the order but no actions", (await mgmt.page.locator(".page-actions .btn-primary").count()) === 0);
@@ -308,6 +315,37 @@ try {
       const err = await s.page.locator(".note-error").count();
       check(`report page ${path} loads for ${s.user.split("@")[0]}`, err === 0, err ? await s.page.locator(".note-error").innerText() : "");
     }
+  }
+
+  /* ============ 9. Navigation: every module, every page in its panel, per role ============ */
+  for (const s of [buyer, stores, qc, prod, sales, dispatch, acc, mgmt]) {
+    await go(s, "/");
+    const rail = s.page.locator(".side .rail-modules button");
+    await rail.first().waitFor();
+    const n = await rail.count();
+    let pages = 0;
+    for (let m = 0; m < n; m += 1) {
+      await rail.nth(m).click();
+      const moduleName = await rail.nth(m).getAttribute("aria-label");
+      // open every collapsed section, then visit each link
+      for (const b of await s.page.locator('.side .panel-nav button.pn-item[aria-expanded="false"]').all()) await b.click();
+      const links = await s.page.locator(".side .panel-nav .pn-list a.pn-item").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+      for (const href of links) {
+        await s.page.goto(`${BASE}${href}`);
+        await s.page.locator("h1").first().waitFor({ timeout: 20_000 });
+        // a page started from another document opens its picker; close it before checking
+        if (href.includes("start=1")) {
+          await s.page.getByRole("dialog").waitFor();
+          await s.page.keyboard.press("Escape");
+        }
+        await s.page.waitForLoadState("networkidle");
+        const err = await s.page.locator(".note-error").count();
+        const active = await s.page.locator(".side .pn-item[data-active]").count();
+        if (err || active !== 1) check(`${s.user.split("@")[0]}: ${moduleName} → ${href}`, false, err ? await s.page.locator(".note-error").first().innerText() : `${active} active items`);
+        pages += 1;
+      }
+    }
+    check(`navigation sweep for ${s.user.split("@")[0]}: ${n} modules, ${pages} pages open with one active item and no error`, pages > 0);
   }
 
   for (const s of [buyer, approver, stores, qc, prod, sales, dispatch, acc, mgmt]) {

@@ -1,0 +1,426 @@
+/* App frame modelled on ERPNext v16 Desk: icon rail of modules + panel of the open module,
+   white content area, no top bar. */
+
+html,
+body {
+  background: var(--sheet);
+}
+.app {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  height: 100dvh;
+  background: var(--sheet);
+}
+.side {
+  display: flex;
+  height: 100dvh;
+  background: var(--frame);
+  border-right: 1px solid var(--border);
+}
+
+/* ---------- Rail ---------- */
+.rail {
+  width: 56px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0 12px;
+  border-right: 1px solid var(--border);
+}
+.rail-logo {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+.rail-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.rail-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.6;
+}
+.rail-btn:hover {
+  background: var(--active);
+  color: var(--text);
+}
+.rail-btn[aria-pressed="true"] {
+  background: var(--sheet);
+  color: var(--text);
+  box-shadow: var(--shadow-pill);
+}
+.rail-rule {
+  width: 24px;
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border);
+}
+.rail-modules {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rail-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rejected-mark);
+  box-shadow: 0 0 0 2px var(--frame);
+}
+.rail .avatar {
+  margin-top: 8px;
+  flex: none;
+}
+
+/* ---------- Module panel ---------- */
+.panel-nav {
+  width: 224px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 8px 12px;
+}
+.pn-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 34px;
+  margin-bottom: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pn-title:hover {
+  background: var(--active);
+}
+.pn-title svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+.pn-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+}
+.pn-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.pn-item:hover {
+  background: var(--active);
+}
+.pn-item[data-active] {
+  background: var(--sheet);
+  box-shadow: var(--shadow-pill);
+  font-weight: 500;
+}
+.pn-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  stroke-width: 1.6;
+}
+.pn-item[data-active] .pn-icon {
+  color: var(--text);
+}
+.pn-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pn-chev {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+.pn-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 6px 15px;
+  padding-left: 9px;
+  border-left: 1px solid var(--border);
+}
+.pn-children .pn-item {
+  min-height: 30px;
+  color: var(--muted);
+}
+.pn-children .pn-item:hover,
+.pn-children .pn-item[data-active] {
+  color: var(--text);
+}
+.pn-foot {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+.pn-company-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pn-company {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-weight: 500;
+}
+.pn-desk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.pn-desk:hover {
+  color: var(--text);
+}
+.pn-desk svg {
+  width: 12px;
+  height: 12px;
+}
+.menu-check {
+  margin-left: auto;
+}
+
+/* ---------- Content ---------- */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100dvh;
+}
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.mobile-bar {
+  display: none;
+}
+.content .page {
+  padding: 20px 32px 48px;
+}
+/* Document numbers and codes: Inter with tabular figures, as in Desk; no monospace costume. */
+:root .mono {
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ---------- Status pills (ERPNext indicator style: dot + label) ---------- */
+.chip {
+  height: 22px;
+  padding: 0 9px;
+  gap: 6px;
+  border-radius: 999px;
+}
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* ---------- Tables: grey header row like Desk list views ---------- */
+.panel .dt th {
+  background: var(--raised);
+  color: var(--muted);
+  font-weight: 500;
+}
+.panel .dt tr:last-child td {
+  border-bottom: 0;
+}
+.btn.btn-primary:hover {
+  background: #2f2f2f;
+  border-color: #2f2f2f;
+}
+
+/* ---------- Drawer (phone) ---------- */
+.drawer {
+  flex-direction: row;
+  width: auto;
+  padding: 0;
+}
+.drawer .panel-nav {
+  width: min(240px, calc(86vw - 56px));
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .side {
+    display: none;
+  }
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-title {
+    flex: 1;
+    font-weight: 600;
+  }
+  .content .page {
+    padding: 16px 16px 28px;
+  }
+}
+
+/* ---------- Start-from picker ---------- */
+.picker {
+  width: min(720px, calc(100vw - 16px));
+  padding: 0;
+}
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.picker-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.picker-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 16px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.picker .note {
+  margin: 10px 16px 0;
+}
+.picker-body {
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Connections ---------- */
+.connections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px 24px;
+}
+.panel-body.connections > * + * {
+  margin-top: 0;
+}
+.conn-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.conn-count {
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--active);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.conn-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+}
+.conn-link {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+}
+.conn-link:hover {
+  border-color: var(--control);
+  background: var(--raised);
+}
+.conn-cancelled {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+
+/* Facts: codes and links stay on one line */
+.facts {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+.fact dd .link {
+  white-space: nowrap;
+}

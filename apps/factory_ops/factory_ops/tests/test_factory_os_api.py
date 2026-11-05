@@ -40,7 +40,9 @@ class TestFactoryOSBoot(FactoryOpsTestCase):
 				for ptype in PTYPES:
 					self.assertEqual(perms[ptype], bool(frappe.has_permission(dt, ptype)), f"{user} {dt} {ptype}")
 			for report in data["reports"]:
-				self.assertTrue(frappe.get_doc("Report", report).is_permitted(), f"{user} {report}")
+				doc = frappe.get_doc("Report", report)
+				self.assertTrue(doc.is_permitted(), f"{user} {report}")
+				self.assertTrue(frappe.has_permission(doc.ref_doctype, "report"), f"{user} {report}")
 
 	def test_role_boundaries_are_reported(self):
 		frappe.set_user(USER_QC)
@@ -48,6 +50,12 @@ class TestFactoryOSBoot(FactoryOpsTestCase):
 		self.assertTrue(data["doctypes"]["QC Release"]["submit"])
 		self.assertFalse(data["doctypes"]["Purchase Order"]["create"])
 		self.assertIn("QC Queue", data["reports"])
+
+		# Wastage by Reason reads Stock Entries: offered only to roles with report rights on them
+		frappe.set_user(USER_ACCOUNTS)
+		self.assertEqual(
+			"Wastage by Reason" in boot()["reports"], bool(frappe.has_permission("Stock Entry", "report"))
+		)
 
 		frappe.set_user(USER_MANAGEMENT)
 		data = boot()

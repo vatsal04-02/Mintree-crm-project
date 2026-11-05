@@ -12,3 +12,4 @@ __pycache__/
 apps/factory_ops/factory_ops/public/factory/
 apps/factory_ops/factory_ops/www/factory.html
 apps/web/e2e/out/
+*.tsbuildinfo

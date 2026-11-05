@@ -1,14 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleDashed,
-  Clock,
-  ExternalLink,
-  Loader2,
-  PauseCircle,
-  XCircle,
-} from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { deskUrl, FrappeError } from "@/api/frappe";
 
@@ -57,14 +48,6 @@ const TONES: Record<string, Tone> = {
   Return: "neutral",
 };
 
-const ICONS: Record<Tone, typeof CheckCircle2> = {
-  released: CheckCircle2,
-  hold: PauseCircle,
-  rejected: XCircle,
-  progress: Clock,
-  neutral: CircleDashed,
-};
-
 export function toneOf(status: string): Tone {
   if (TONES[status]) return TONES[status];
   if (/expired|reject|cancel|overdue/i.test(status)) return "rejected";
@@ -75,10 +58,9 @@ export function toneOf(status: string): Tone {
 
 export function StatusChip({ status, tone }: { status: string; tone?: Tone }) {
   const t = tone ?? toneOf(status);
-  const Icon = ICONS[t];
   return (
     <span className={`chip chip-${t}`}>
-      <Icon aria-hidden />
+      <span className="chip-dot" aria-hidden />
       {status}
     </span>
   );

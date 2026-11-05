@@ -1,7 +1,7 @@
 import { useSession } from "@/api/session";
 import { PageHeader, StatusChip } from "@/components/ui";
 
-const C = { label: "Administration" };
+const C = { label: "Setup" };
 
 type Status =
   | "Connected"

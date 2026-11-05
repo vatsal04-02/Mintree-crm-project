@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { ClipboardList, Lock, Package, ReceiptIndianRupee, Send, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call, docMethod, insert, mapDoc, type Row, setValues, submit } from "@/api/frappe";
@@ -7,8 +7,12 @@ import { can, useSession } from "@/api/session";
 import {
   ActionButton,
   ChildTable,
+  Connections,
+  childValues,
   DocFrame,
   ListPage,
+  nameIn,
+  RefLink,
   RowsEditor,
   useAction,
   useDoc,
@@ -18,13 +22,31 @@ import { DateField, LinkField, NumberField, SelectField, TextField } from "@/com
 import { ReportView } from "@/components/ReportView";
 import { ErrorNote, Facts, Note, PageHeader, Panel, StatusChip } from "@/components/ui";
 import { formatDate, formatMoney, formatPercent, formatQty, isoDate } from "@/lib/format";
+import { routeFor } from "@/nav";
 
-const C = { label: "Commerce" };
+const C = { label: "Selling" };
 const SO_API = "erpnext.selling.doctype.sales_order.sales_order";
 const PL_API = "erpnext.stock.doctype.pick_list.pick_list";
 const DN_API = "erpnext.stock.doctype.delivery_note.delivery_note";
 const CHANNELS = ["B2B", "D2C Website", "D2C Marketplace", "D2C Other"];
 const enc = encodeURIComponent;
+
+/** Sales order -> FEFO pick list, saved and submitted (ERPNext + factory_ops choose the batches). */
+async function createPickList(salesOrder: string) {
+  const draft = await mapDoc(`${SO_API}.create_pick_list`, { source_name: salesOrder });
+  const pl = await insert({ ...(draft as Row), doctype: "Pick List" });
+  return submit("Pick List", pl.name);
+}
+
+/** Pick list -> draft delivery note (ERPNext saves it); returns its name. */
+async function createDelivery(pickList: string): Promise<string> {
+  const out = await call<Row | string>(`${PL_API}.create_delivery_note`, { source_name: pickList });
+  if (typeof out === "string") return out;
+  if (out.name && out.docstatus !== undefined && !String(out.name).startsWith("new-"))
+    return String(out.name);
+  const dn = await insert({ ...out, doctype: "Delivery Note" });
+  return dn.name;
+}
 
 /* ======================= Sales Orders ======================= */
 
@@ -242,22 +264,11 @@ export function SalesOrderPage() {
   const boot = useSession();
   const navigate = useNavigate();
   const { data: doc, error } = useDoc("Sales Order", name);
-  const picks = useList<Row>("Pick List", {
-    fields: ["name", "docstatus", "status", "creation"],
-    filters: [["Pick List Item", "sales_order", "=", name]],
-  });
   const doSubmit = useAction(() => submit("Sales Order", name), { success: `${name} submitted` });
-  const pick = useAction(
-    async () => {
-      const draft = await mapDoc(`${SO_API}.create_pick_list`, { source_name: name });
-      const pl = await insert({ ...(draft as Row), doctype: "Pick List" });
-      return submit("Pick List", pl.name);
-    },
-    {
-      success: (pl) => `Pick list ${pl.name} created (first expiry first out)`,
-      onDone: (pl) => navigate({ to: `/sales/pick-lists/${enc(pl.name)}` }),
-    },
-  );
+  const pick = useAction(() => createPickList(name), {
+    success: (pl) => `Pick list ${pl.name} created (first expiry first out)`,
+    onDone: (pl) => navigate({ to: `/sales/pick-lists/${enc(pl.name)}` }),
+  });
   return (
     <DocFrame
       doc={doc}
@@ -297,7 +308,7 @@ export function SalesOrderPage() {
           <Panel>
             <Facts
               items={[
-                ["Customer", String(doc.customer)],
+                ["Customer", <RefLink key="c" doctype="Customer" name={doc.customer} />],
                 ["Channel", String(doc.fo_sales_channel ?? "—")],
                 ["External order", String(doc.fo_external_order_id ?? "—")],
                 ["Deliver by", formatDate(doc.delivery_date)],
@@ -342,29 +353,90 @@ export function SalesOrderPage() {
               ]}
             />
           </Panel>
-          {(picks.data?.length ?? 0) > 0 && (
-            <Panel title="Pick lists" flush>
-              <ChildTable
-                label="Pick lists"
-                rows={picks.data}
-                columns={[
-                  {
-                    key: "name",
-                    label: "Pick list",
-                    render: (r) => (
-                      <Link className="link mono" to={`/sales/pick-lists/${enc(String(r.name))}`}>
-                        {String(r.name)}
-                      </Link>
-                    ),
-                  },
-                  { key: "status", label: "Status", render: (r) => <StatusChip status={String(r.status)} /> },
-                ]}
-              />
-            </Panel>
-          )}
+          <Connections
+            items={[
+              {
+                label: "Pick Lists",
+                doctype: "Pick List",
+                filters: [["Pick List Item", "sales_order", "=", name]],
+                route: (n) => routeFor("Pick List", n),
+              },
+              {
+                label: "Deliveries",
+                doctype: "Delivery Note",
+                filters: [["Delivery Note Item", "against_sales_order", "=", name]],
+                route: (n) => routeFor("Delivery Note", n),
+              },
+              {
+                label: "Sales Invoices",
+                doctype: "Sales Invoice",
+                filters: [["Sales Invoice Item", "sales_order", "=", name]],
+                route: (n) => routeFor("Sales Invoice", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
+  );
+}
+
+/* ======================= Pick Lists ======================= */
+
+export function PickListList() {
+  const navigate = useNavigate();
+  return (
+    <ListPage<Row>
+      title="Pick Lists"
+      crumbs={[C]}
+      doctype="Pick List"
+      fields={["name", "customer", "creation", "status", "docstatus"]}
+      tabs={[
+        {
+          label: "Open",
+          filters: [
+            ["docstatus", "=", 1],
+            ["status", "not in", ["Completed", "Cancelled"]],
+          ],
+        },
+        { label: "Completed", filters: { status: "Completed" } },
+        { label: "All", filters: {} },
+      ]}
+      detail={(r) => `/sales/pick-lists/${enc(String(r.name))}`}
+      start={{
+        label: "Create pick list",
+        title: "Pick a sales order",
+        hint: "Submitted orders not yet fully picked. The ERP picks released, in-date batches, first expiry first out.",
+        doctype: "Sales Order",
+        fields: ["name", "customer", "delivery_date", "per_picked", "grand_total", "currency"],
+        filters: [
+          ["docstatus", "=", 1],
+          ["per_delivered", "<", 100],
+          ["per_picked", "<", 100],
+          ["status", "not in", ["Closed", "On Hold"]],
+        ],
+        columns: [
+          { key: "name", label: "Order", render: (r) => <span className="mono">{String(r.name)}</span> },
+          { key: "customer", label: "Customer" },
+          { key: "delivery_date", label: "Deliver by", render: (r) => formatDate(r.delivery_date) },
+          { key: "per_picked", label: "Picked", num: true, render: (r) => formatPercent(r.per_picked) },
+        ],
+        run: async (r) => {
+          const pl = await createPickList(String(r.name));
+          await navigate({ to: `/sales/pick-lists/${enc(pl.name)}` });
+        },
+      }}
+      columns={[
+        { key: "name", label: "Pick list", render: (r) => <span className="mono">{String(r.name)}</span> },
+        { key: "customer", label: "Customer", render: (r) => String(r.customer ?? "—") },
+        {
+          key: "creation",
+          label: "Created",
+          render: (r) => formatDate(String(r.creation ?? "").slice(0, 10)),
+        },
+        { key: "status", label: "Status", render: (r) => <StatusChip status={String(r.status)} /> },
+      ]}
+    />
   );
 }
 
@@ -385,26 +457,16 @@ export function PickListPage() {
       success: "Picked batches reserved",
     },
   );
-  const toDN = useAction(
-    async () => {
-      const out = await call<Row | string>(`${PL_API}.create_delivery_note`, { source_name: name });
-      if (typeof out === "string") return out;
-      if (out.name && out.docstatus !== undefined && !String(out.name).startsWith("new-"))
-        return String(out.name);
-      const dn = await insert({ ...out, doctype: "Delivery Note" });
-      return dn.name;
-    },
-    {
-      success: (dn) => `Delivery note ${dn} created as draft`,
-      onDone: (dn) => navigate({ to: `/sales/deliveries/${enc(dn)}` }),
-    },
-  );
+  const toDN = useAction(() => createDelivery(name), {
+    success: (dn) => `Delivery note ${dn} created as draft`,
+    onDone: (dn) => navigate({ to: `/sales/deliveries/${enc(dn)}` }),
+  });
   const reserved = (reservations.data?.length ?? 0) > 0;
   return (
     <DocFrame
       doc={doc}
       title={name}
-      crumbs={[C, { label: "Sales Orders", to: "/sales/orders" }]}
+      crumbs={[C, { label: "Pick Lists", to: "/sales/pick-lists" }]}
       error={error ?? reserve.error ?? toDN.error}
       actions={
         doc?.docstatus === 1 && (
@@ -488,6 +550,22 @@ export function PickListPage() {
               ]}
             />
           </Panel>
+          <Connections
+            items={[
+              {
+                label: "Sales Orders",
+                doctype: "Sales Order",
+                filters: nameIn(childValues(doc.locations, "sales_order")),
+                route: (n) => routeFor("Sales Order", n),
+              },
+              {
+                label: "Deliveries",
+                doctype: "Delivery Note",
+                filters: { pick_list: name },
+                route: (n) => routeFor("Delivery Note", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
@@ -497,6 +575,7 @@ export function PickListPage() {
 /* ======================= Delivery Notes ======================= */
 
 export function DeliveryList() {
+  const navigate = useNavigate();
   return (
     <ListPage<Row>
       title="Deliveries"
@@ -526,9 +605,26 @@ export function DeliveryList() {
         { label: "All", filters: {} },
       ]}
       detail={(r) => `/sales/deliveries/${enc(String(r.name))}`}
-      note={
-        <Note>Delivery notes start from a pick list: open the sales order and create its pick list.</Note>
-      }
+      start={{
+        label: "Create delivery",
+        title: "Deliver a pick list",
+        hint: "Submitted pick lists not yet delivered. Choose one to create its delivery note.",
+        doctype: "Pick List",
+        fields: ["name", "customer", "creation", "status"],
+        filters: [
+          ["docstatus", "=", 1],
+          ["status", "not in", ["Completed", "Cancelled"]],
+        ],
+        columns: [
+          { key: "name", label: "Pick list", render: (r) => <span className="mono">{String(r.name)}</span> },
+          { key: "customer", label: "Customer", render: (r) => String(r.customer ?? "—") },
+          { key: "status", label: "Status", render: (r) => <StatusChip status={String(r.status)} /> },
+        ],
+        run: async (r) => {
+          const dn = await createDelivery(String(r.name));
+          await navigate({ to: `/sales/deliveries/${enc(dn)}` });
+        },
+      }}
       columns={[
         { key: "name", label: "Delivery", render: (r) => <span className="mono">{String(r.name)}</span> },
         { key: "customer", label: "Customer" },
@@ -699,7 +795,7 @@ export function DeliveryPage() {
           <Panel>
             <Facts
               items={[
-                ["Customer", String(doc.customer)],
+                ["Customer", <RefLink key="c" doctype="Customer" name={doc.customer} />],
                 ["Channel", String(doc.fo_sales_channel ?? "—")],
                 ["Posting date", formatDate(doc.posting_date)],
                 ["Value", formatMoney(doc.grand_total, String(doc.currency))],
@@ -735,11 +831,38 @@ export function DeliveryPage() {
                 {
                   key: "against_sales_order",
                   label: "Sales order",
-                  render: (r) => <span className="mono">{String(r.against_sales_order ?? "—")}</span>,
+                  render: (r) => <RefLink doctype="Sales Order" name={r.against_sales_order} />,
                 },
               ]}
             />
           </Panel>
+          <Connections
+            items={[
+              {
+                label: "Sales Orders",
+                doctype: "Sales Order",
+                filters: nameIn(childValues(doc.items, "against_sales_order")),
+                route: (n) => routeFor("Sales Order", n),
+              },
+              {
+                label: "Pick List",
+                doctype: "Pick List",
+                filters: nameIn(doc.pick_list ? [String(doc.pick_list)] : []),
+                route: (n) => routeFor("Pick List", n),
+              },
+              {
+                label: "Packing Slips",
+                doctype: "Packing Slip",
+                filters: { delivery_note: name },
+              },
+              {
+                label: "Sales Invoices",
+                doctype: "Sales Invoice",
+                filters: [["Sales Invoice Item", "delivery_note", "=", name]],
+                route: (n) => routeFor("Sales Invoice", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>

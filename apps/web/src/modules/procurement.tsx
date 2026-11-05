@@ -6,8 +6,12 @@ import { can, useSession } from "@/api/session";
 import {
   ActionButton,
   ChildTable,
+  Connections,
+  childValues,
   DocFrame,
   ListPage,
+  nameIn,
+  RefLink,
   RowsEditor,
   useAction,
   useDoc,
@@ -16,8 +20,9 @@ import { DateField, FileField, LinkField, TextArea } from "@/components/fields";
 import { ErrorNote, Facts, Note, PageHeader, Panel, StatusChip } from "@/components/ui";
 import { putDraft, takeDraft } from "@/lib/drafts";
 import { formatDate, formatMoney, formatPercent, formatQty, isoDate } from "@/lib/format";
+import { routeFor } from "@/nav";
 
-const C = { label: "Supply Chain" };
+const C = { label: "Buying" };
 const PO_API = "erpnext.buying.doctype.purchase_order.purchase_order";
 const MR_API = "erpnext.stock.doctype.material_request.material_request";
 const enc = encodeURIComponent;
@@ -206,6 +211,16 @@ export function MaterialRequestPage() {
               ]}
             />
           </Panel>
+          <Connections
+            items={[
+              {
+                label: "Purchase Orders",
+                doctype: "Purchase Order",
+                filters: [["Purchase Order Item", "material_request", "=", name]],
+                route: (n) => routeFor("Purchase Order", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
@@ -425,7 +440,7 @@ export function PurchaseOrderPage() {
           <Panel>
             <Facts
               items={[
-                ["Supplier", String(doc.supplier)],
+                ["Supplier", <RefLink key="s" doctype="Supplier" name={doc.supplier} />],
                 ["Date", formatDate(doc.transaction_date)],
                 ["Required by", formatDate(doc.schedule_date)],
                 ["Total", formatMoney(doc.grand_total, String(doc.currency))],
@@ -468,6 +483,27 @@ export function PurchaseOrderPage() {
               ]}
             />
           </Panel>
+          <Connections
+            items={[
+              {
+                label: "Material Requests",
+                doctype: "Material Request",
+                filters: nameIn(childValues(doc.items, "material_request")),
+                route: (n) => routeFor("Material Request", n),
+              },
+              {
+                label: "Goods Receipts",
+                doctype: "Purchase Receipt",
+                filters: [["Purchase Receipt Item", "purchase_order", "=", name]],
+                route: (n) => routeFor("Purchase Receipt", n),
+              },
+              {
+                label: "Purchase Invoices",
+                doctype: "Purchase Invoice",
+                filters: [["Purchase Invoice Item", "purchase_order", "=", name]],
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
@@ -477,6 +513,7 @@ export function PurchaseOrderPage() {
 /* ======================= Goods Receipts (Purchase Receipt) ======================= */
 
 export function ReceiptList() {
+  const navigate = useNavigate();
   return (
     <ListPage<Row>
       title="Goods Receipts"
@@ -489,11 +526,28 @@ export function ReceiptList() {
         { label: "All", filters: {} },
       ]}
       detail={(r) => `/procurement/receipts/${enc(String(r.name))}`}
-      note={
-        <Note>
-          Goods receipts start from an approved purchase order: open the order and choose “Receive goods”.
-        </Note>
-      }
+      start={{
+        label: "Receive goods",
+        title: "Receive against a purchase order",
+        hint: "Approved orders with goods still to come. Choose one to start its goods receipt.",
+        doctype: "Purchase Order",
+        fields: ["name", "supplier", "schedule_date", "per_received", "grand_total", "currency"],
+        filters: [
+          ["docstatus", "=", 1],
+          ["per_received", "<", 100],
+          ["status", "not in", ["Closed", "On Hold"]],
+        ],
+        columns: [
+          { key: "name", label: "Order", render: (r) => <span className="mono">{String(r.name)}</span> },
+          { key: "supplier", label: "Supplier" },
+          { key: "schedule_date", label: "Required by", render: (r) => formatDate(r.schedule_date) },
+          { key: "per_received", label: "Received", num: true, render: (r) => formatPercent(r.per_received) },
+        ],
+        run: async (r) => {
+          const d = await mapDoc(`${PO_API}.make_purchase_receipt`, { source_name: r.name });
+          await navigate({ to: "/procurement/receipts/new", search: { draft: putDraft(d as Row) } });
+        },
+      }}
       columns={[
         { key: "name", label: "Receipt", render: (r) => <span className="mono">{String(r.name)}</span> },
         { key: "supplier", label: "Supplier" },
@@ -657,7 +711,7 @@ export function ReceiptPage() {
           <Panel>
             <Facts
               items={[
-                ["Supplier", String(doc.supplier)],
+                ["Supplier", <RefLink key="s" doctype="Supplier" name={doc.supplier} />],
                 ["Posting date", formatDate(doc.posting_date)],
                 ["Value", formatMoney(doc.grand_total, String(doc.currency))],
                 ["Received by", String(doc.owner)],
@@ -678,7 +732,7 @@ export function ReceiptPage() {
                 {
                   key: "batch_no",
                   label: "Batch",
-                  render: (r) => <span className="mono">{String(r.batch_no ?? "—")}</span>,
+                  render: (r) => <RefLink doctype="Batch" name={r.batch_no} />,
                 },
                 { key: "fo_supplier_batch_no", label: "Supplier batch" },
                 { key: "fo_expiry_date", label: "Expiry", render: (r) => formatDate(r.fo_expiry_date) },
@@ -698,6 +752,34 @@ export function ReceiptPage() {
               ]}
             />
           </Panel>
+          <Connections
+            items={[
+              {
+                label: "Purchase Orders",
+                doctype: "Purchase Order",
+                filters: nameIn(childValues(doc.items, "purchase_order")),
+                route: (n) => routeFor("Purchase Order", n),
+              },
+              {
+                label: "QC Releases",
+                doctype: "QC Release",
+                filters: {
+                  batch_no: [
+                    "in",
+                    childValues(doc.items, "batch_no").length
+                      ? childValues(doc.items, "batch_no")
+                      : ["__none__"],
+                  ],
+                },
+                route: (n) => routeFor("QC Release", n),
+              },
+              {
+                label: "Purchase Invoices",
+                doctype: "Purchase Invoice",
+                filters: [["Purchase Invoice Item", "purchase_receipt", "=", name]],
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>

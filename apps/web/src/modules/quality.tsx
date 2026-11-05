@@ -4,12 +4,22 @@ import { useEffect, useState } from "react";
 import { call, type Doc, insert, type Row, save, submit } from "@/api/frappe";
 import { can, useSession } from "@/api/session";
 import { DataTable } from "@/components/DataTable";
-import { ActionButton, DocFrame, ListPage, useAction, useDoc, useReport } from "@/components/doc";
+import {
+  ActionButton,
+  Connections,
+  DocFrame,
+  ListPage,
+  RefLink,
+  useAction,
+  useDoc,
+  useReport,
+} from "@/components/doc";
 import { LinkField, NumberField, SelectField, TextArea } from "@/components/fields";
 import { ErrorNote, Facts, Note, PageHeader, Panel, Spinner, StatusChip } from "@/components/ui";
 import { formatDate, formatDateTime, formatHours, formatQty } from "@/lib/format";
+import { routeFor } from "@/nav";
 
-const C = { label: "Manufacturing" };
+const C = { label: "Quality" };
 const QCR_API = "factory_ops.quality.doctype.qc_release.qc_release";
 const enc = encodeURIComponent;
 const DECISIONS = ["Release", "Partial Release", "Conditional Release", "Reject"];
@@ -461,12 +471,7 @@ export function ReleasePage() {
             <Facts
               items={[
                 ["Item", `${String(doc.item_code)} · ${String(doc.item_name ?? "")}`],
-                [
-                  "Batch",
-                  <span className="mono" key="b">
-                    {String(doc.batch_no)}
-                  </span>,
-                ],
+                ["Batch", <RefLink key="b" doctype="Batch" name={doc.batch_no} />],
                 [
                   "Decision",
                   <StatusChip
@@ -478,7 +483,15 @@ export function ReleasePage() {
                 ["Quantity", formatQty(doc.qty, doc.uom)],
                 ["From", String(doc.source_warehouse)],
                 ["To", String(doc.target_warehouse ?? "Set by the ERP on submit")],
-                ["Stock entry", String(doc.stock_entry ?? "—")],
+                ["Stock entry", <RefLink key="se" doctype="Stock Entry" name={doc.stock_entry} />],
+                [
+                  "Received through",
+                  doc.origin_doctype ? (
+                    <RefLink key="o" doctype={String(doc.origin_doctype)} name={doc.origin_document} />
+                  ) : (
+                    "—"
+                  ),
+                ],
                 ["Approved by", String(doc.approved_by ?? "—")],
                 ["Released on", formatDateTime(doc.released_on)],
                 ["Reason", String(doc.reason ?? "—")],
@@ -517,6 +530,25 @@ export function ReleasePage() {
               </div>
             </Panel>
           )}
+          <Connections
+            items={[
+              {
+                label: "Other releases of this batch",
+                doctype: "QC Release",
+                filters: [
+                  ["batch_no", "=", String(doc.batch_no)],
+                  ["name", "!=", name],
+                ],
+                route: (n) => routeFor("QC Release", n),
+              },
+              {
+                label: "Deviations for this batch",
+                doctype: "QC Deviation",
+                filters: { batch_no: String(doc.batch_no) },
+                route: (n) => routeFor("QC Deviation", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
@@ -657,12 +689,7 @@ export function DeviationPage() {
           <Facts
             items={[
               ["Item", String(doc.item_code)],
-              [
-                "Batch",
-                <span className="mono" key="b">
-                  {String(doc.batch_no)}
-                </span>,
-              ],
+              ["Batch", <RefLink key="b" doctype="Batch" name={doc.batch_no} />],
               ["Description", String(doc.description)],
               ["Impact assessment", String(doc.impact_assessment)],
               ["Proposed disposition", String(doc.proposed_disposition)],
@@ -671,6 +698,18 @@ export function DeviationPage() {
             ]}
           />
         </Panel>
+      )}
+      {doc && (
+        <Connections
+          items={[
+            {
+              label: "QC Releases using this deviation",
+              doctype: "QC Release",
+              filters: { qc_deviation: name },
+              route: (n) => routeFor("QC Release", n),
+            },
+          ]}
+        />
       )}
     </DocFrame>
   );

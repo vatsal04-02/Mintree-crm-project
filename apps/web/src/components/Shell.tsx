@@ -1,54 +1,251 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Command } from "cmdk";
-import { Bell, Building2, ExternalLink, LogOut, Menu, Plus, Search } from "lucide-react";
+import {
+  Bell,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+} from "lucide-react";
 import { Dialog, DropdownMenu, Popover } from "radix-ui";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getList, logout, searchLink } from "@/api/frappe";
 import { BOOT_KEY, can, isSampleCompany, useSession } from "@/api/session";
 import { formatDateTime } from "@/lib/format";
 import { useHotkeys } from "@/lib/hotkeys";
-import { quickActions, SEARCHABLE, visibleNav } from "@/nav";
+import {
+  allPages,
+  type Module,
+  moduleForPath,
+  type NavItem,
+  quickActions,
+  SEARCHABLE,
+  visibleModules,
+} from "@/nav";
 
-function Brand() {
-  const boot = useSession();
-  return (
-    <div className="brand">
-      <img src={`${import.meta.env.BASE_URL}mark.svg`} alt="" width={22} height={22} />
-      <span className="brand-name">Mintree Factory OS</span>
-      {isSampleCompany(boot) && (
-        <span className="sample-badge" title="Development data, not real">
-          SAMPLE
-        </span>
-      )}
-    </div>
-  );
+/** "/a/b?x=1" -> { to: "/a/b", search: { x: "1" } } for router links. */
+export function splitTo(to: string): { to: string; search?: Record<string, string> } {
+  const [path = to, q] = to.split("?");
+  return q ? { to: path, search: Object.fromEntries(new URLSearchParams(q)) } : { to: path };
 }
 
-function SideNav({ onNavigate }: { onNavigate?: () => void }) {
-  const boot = useSession();
+function leaves(items: NavItem[]): NavItem[] {
+  return items.flatMap((i) => (i.children ? leaves(i.children) : [i]));
+}
+
+/** How well a nav target matches the current location (higher wins; 0 = no match). */
+function score(target: string, path: string, search: string): number {
+  const [p, q] = target.split("?");
+  if (q) return path === p && search.includes(q) ? 3 : 0;
+  if (path === p) return 2;
+  return p !== "/" && path.startsWith(`${p}/`) && !path.endsWith("/new") ? 1 : 0;
+}
+
+/** The one item in a module panel that represents where the user is. */
+function activeTarget(m: Module | undefined, path: string, search: string): string | undefined {
+  let best: string | undefined;
+  let top = 0;
+  for (const i of leaves(m?.items ?? [])) {
+    const s = i.to ? score(i.to, path, search) : 0;
+    if (s > top) {
+      top = s;
+      best = i.to;
+    }
+  }
+  return best;
+}
+
+/* ---------------- Icon rail ---------------- */
+
+function Rail({
+  modules,
+  open,
+  onOpen,
+  onSearch,
+}: {
+  modules: Module[];
+  open: string;
+  onOpen: (key: string) => void;
+  onSearch: () => void;
+}) {
   return (
-    <nav aria-label="Main" className="side-nav">
-      {visibleNav(boot).map((g) => (
-        <div key={g.label}>
-          <div className="nav-group">{g.label}</div>
-          {g.items.map((i) => (
-            <Link
-              key={i.to}
-              to={i.to}
-              className="nav-link"
-              activeOptions={{ exact: i.to === "/" }}
-              onClick={onNavigate}
+    <nav className="rail" aria-label="Modules">
+      <Link to="/" className="rail-logo" aria-label="Mintree Factory OS home" onClick={() => onOpen("home")}>
+        <img src={`${import.meta.env.BASE_URL}mark.svg`} alt="" width={28} height={28} />
+      </Link>
+      <button
+        type="button"
+        className="rail-btn"
+        aria-label="Search (Ctrl K)"
+        title="Search  Ctrl K"
+        onClick={onSearch}
+      >
+        <Search aria-hidden />
+      </button>
+      <Notifications />
+      <div className="rail-rule" />
+      <div className="rail-modules">
+        {modules
+          .filter((m) => m.key !== "home")
+          .map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              className="rail-btn"
+              aria-label={m.label}
+              title={m.label}
+              aria-pressed={open === m.key}
+              onClick={() => onOpen(m.key)}
             >
-              <i.icon aria-hidden />
-              {i.label}
-            </Link>
+              <m.icon aria-hidden />
+            </button>
           ))}
-        </div>
-      ))}
+      </div>
+      <UserMenu />
     </nav>
   );
 }
+
+/* ---------------- Module panel ---------------- */
+
+function PanelItem({
+  item,
+  active,
+  depth = 0,
+  onNavigate,
+}: {
+  item: NavItem;
+  active?: string;
+  depth?: number;
+  onNavigate?: () => void;
+}) {
+  const hasActive = item.children ? leaves(item.children).some((c) => c.to === active) : false;
+  const [expanded, setExpanded] = useState(hasActive || item.label !== "Create");
+  useEffect(() => {
+    if (hasActive) setExpanded(true);
+  }, [hasActive]);
+  if (item.children) {
+    return (
+      <div className="pn-group">
+        <button
+          type="button"
+          className="pn-item"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {item.icon && <item.icon aria-hidden className="pn-icon" />}
+          <span className="pn-label">{item.label}</span>
+          {expanded ? (
+            <ChevronDown aria-hidden className="pn-chev" />
+          ) : (
+            <ChevronRight aria-hidden className="pn-chev" />
+          )}
+        </button>
+        {expanded && (
+          <div className="pn-children">
+            {item.children.map((c) => (
+              <PanelItem
+                key={c.to ?? c.label}
+                item={c}
+                active={active}
+                depth={depth + 1}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  const link = splitTo(item.to ?? "/");
+  const isActive = item.to === active;
+  return (
+    <Link
+      to={link.to}
+      search={link.search}
+      className="pn-item"
+      data-active={isActive || undefined}
+      aria-current={isActive ? "page" : undefined}
+      activeOptions={{ exact: true, includeSearch: true }}
+      activeProps={{}}
+      onClick={onNavigate}
+    >
+      {depth === 0 && item.icon && <item.icon aria-hidden className="pn-icon" />}
+      <span className="pn-label">{item.label}</span>
+    </Link>
+  );
+}
+
+function ModulePanel({
+  modules,
+  module,
+  active,
+  onOpen,
+  onNavigate,
+}: {
+  modules: Module[];
+  module: Module;
+  active?: string;
+  onOpen: (key: string) => void;
+  onNavigate?: () => void;
+}) {
+  const boot = useSession();
+  return (
+    <aside className="panel-nav" aria-label={`${module.label} pages`}>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <button type="button" className="pn-title">
+            <span>{module.label}</span>
+            <ChevronDown aria-hidden />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content className="float menu" align="start" sideOffset={4}>
+            {modules.map((m) => (
+              <DropdownMenu.Item key={m.key} className="menu-item" onSelect={() => onOpen(m.key)}>
+                <m.icon aria-hidden />
+                {m.label}
+                {m.key === module.key && <Check aria-hidden className="menu-check" />}
+              </DropdownMenu.Item>
+            ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+      <div className="pn-list">
+        {module.items.map((i) => (
+          <PanelItem
+            key={`${module.key}:${i.to ?? i.label}`}
+            item={i}
+            active={active}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </div>
+      <div className="pn-foot">
+        <div className="pn-company-row">
+          <span className="pn-company" title="Company in the ERP">
+            {boot.company ?? "No default company"}
+          </span>
+          {isSampleCompany(boot) && (
+            <span className="sample-badge" title="Development data, not real">
+              SAMPLE
+            </span>
+          )}
+        </div>
+        <a className="pn-desk" href={boot.desk_url} target="_blank" rel="noreferrer">
+          Open ERPNext Desk <ExternalLink aria-hidden />
+        </a>
+      </div>
+    </aside>
+  );
+}
+
+/* ---------------- Notifications, account ---------------- */
 
 function Notifications() {
   const boot = useSession();
@@ -75,15 +272,16 @@ function Notifications() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="btn btn-ghost btn-icon top-icon"
+          className="rail-btn"
           aria-label={`Notifications, ${unread} unread`}
+          title="Notifications"
         >
           <Bell aria-hidden />
-          {unread > 0 && <span className="dot-count">{unread}</span>}
+          {unread > 0 && <span className="rail-dot" />}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content className="float popover" align="end" sideOffset={6}>
+        <Popover.Content className="float popover" side="right" align="start" sideOffset={8}>
           <div className="popover-head">Notifications</div>
           {error && <p className="popover-empty">Could not load notifications: {(error as Error).message}</p>}
           {!error && (data?.length ?? 0) === 0 && (
@@ -122,12 +320,17 @@ function UserMenu() {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button type="button" className="avatar" aria-label={`Account: ${boot.full_name}`}>
+        <button
+          type="button"
+          className="avatar"
+          aria-label={`Account: ${boot.full_name}`}
+          title={boot.full_name}
+        >
           {initials}
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className="float menu" align="end" sideOffset={6}>
+        <DropdownMenu.Content className="float menu" side="right" align="end" sideOffset={8}>
           <div className="menu-head">
             <strong>{boot.full_name}</strong>
             <span className="mono">{boot.user}</span>
@@ -157,32 +360,8 @@ function UserMenu() {
   );
 }
 
-function NewMenu() {
-  const boot = useSession();
-  const navigate = useNavigate();
-  const actions = quickActions(boot);
-  if (!actions.length) return null;
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button type="button" className="btn btn-sm">
-          <Plus aria-hidden /> New
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className="float menu" align="end" sideOffset={6}>
-          {actions.map((a) => (
-            <DropdownMenu.Item key={a.to} className="menu-item" onSelect={() => navigate({ to: a.to })}>
-              {a.label}
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
-}
+/* ---------------- Search ---------------- */
 
-/** Global search: pages, quick actions and the ERP documents this user may read. */
 function Palette({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => void }) {
   const boot = useSession();
   const navigate = useNavigate();
@@ -210,9 +389,15 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => vo
   const go = (to: string) => {
     setOpen(false);
     setQ("");
-    navigate({ to });
+    navigate(splitTo(to));
   };
-  const pages = visibleNav(boot).flatMap((g) => g.items);
+  const needle = q.toLowerCase();
+  const pages = allPages(boot).filter(
+    (p) =>
+      !p.label.startsWith("New ") &&
+      (!q || `${p.label} ${p.module} ${p.keywords ?? ""}`.toLowerCase().includes(needle)),
+  );
+  const creates = quickActions(boot).filter((a) => !q || a.label.toLowerCase().includes(needle));
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
@@ -222,8 +407,8 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => vo
           <Command shouldFilter={false} label="Search Factory OS">
             <Command.Input value={q} onValueChange={setQ} placeholder="Search documents, batches, pages…" />
             <Command.List>
-              {debounced.length >= 2 && !isFetching && (hits?.length ?? 0) === 0 && (
-                <Command.Empty>No documents you can open match “{debounced}”.</Command.Empty>
+              {debounced.length >= 2 && !isFetching && (hits?.length ?? 0) === 0 && pages.length === 0 && (
+                <Command.Empty>Nothing you can open matches “{debounced}”.</Command.Empty>
               )}
               {(hits?.length ?? 0) > 0 && (
                 <Command.Group heading="Documents">
@@ -242,28 +427,26 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => vo
                   ))}
                 </Command.Group>
               )}
-              <Command.Group heading="Pages">
-                {pages
-                  .filter(
-                    (p) => !q || `${p.label} ${p.keywords ?? ""}`.toLowerCase().includes(q.toLowerCase()),
-                  )
-                  .map((p) => (
+              {pages.length > 0 && (
+                <Command.Group heading="Pages">
+                  {pages.map((p) => (
                     <Command.Item key={p.to} value={p.to} onSelect={() => go(p.to)}>
-                      <p.icon aria-hidden />
                       {p.label}
+                      <span className="cmdk-meta">{p.module}</span>
                     </Command.Item>
                   ))}
-              </Command.Group>
-              <Command.Group heading="Create">
-                {quickActions(boot)
-                  .filter((a) => !q || a.label.toLowerCase().includes(q.toLowerCase()))
-                  .map((a) => (
-                    <Command.Item key={a.to} value={a.to} onSelect={() => go(a.to)}>
+                </Command.Group>
+              )}
+              {creates.length > 0 && (
+                <Command.Group heading="Create">
+                  {creates.map((a) => (
+                    <Command.Item key={a.to} value={`new:${a.to}`} onSelect={() => go(a.to)}>
                       <Plus aria-hidden />
                       {a.label}
                     </Command.Item>
                   ))}
-              </Command.Group>
+                </Command.Group>
+              )}
             </Command.List>
           </Command>
         </Dialog.Content>
@@ -272,56 +455,78 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (o: boolean) => vo
   );
 }
 
+/* ---------------- Layout ---------------- */
+
 export function Shell() {
   const boot = useSession();
+  const modules = useMemo(() => visibleModules(boot), [boot]);
+  const loc = useRouterState({ select: (s) => s.location });
+  const path = loc.pathname.replace(/^\/factory/, "") || "/";
+  const search = loc.searchStr ?? "";
   const [palette, setPalette] = useState(false);
-  const [nav, setNav] = useState(false);
-  const path = useRouterState({ select: (s) => s.location.pathname });
+  const [drawer, setDrawer] = useState(false);
+  const [openKey, setOpenKey] = useState<string>(() => moduleForPath(modules, path)?.key ?? "home");
+
+  // Follow the URL: keep the open module while it lists where you are, else switch to the owner.
+  useEffect(() => {
+    setOpenKey((current) => {
+      const cur = modules.find((m) => m.key === current);
+      if (cur && activeTarget(cur, path, search)) return current;
+      return moduleForPath(modules, path)?.key ?? current;
+    });
+    setDrawer(false);
+  }, [path, search, modules]);
+
   useHotkeys({ "mod+k": () => setPalette(true), "/": () => setPalette(true) });
-  // close the phone drawer on navigation
-  // biome-ignore lint/correctness/useExhaustiveDependencies: path is the trigger
-  useEffect(() => setNav(false), [path]);
+
+  const module = modules.find((m) => m.key === openKey) ?? modules[0];
+  if (!module) return null;
+  const active = activeTarget(module, path, search);
+
   return (
-    <div className="shell">
-      <aside className="shell-side">
-        <Brand />
-        <SideNav />
-      </aside>
-      <header className="shell-top">
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon phone-only"
-          aria-label="Open menu"
-          onClick={() => setNav(true)}
-        >
-          <Menu aria-hidden />
-        </button>
-        <button type="button" className="search-trigger" onClick={() => setPalette(true)}>
-          <Search aria-hidden />
-          <span>Search documents and pages</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <div className="top-right">
-          <NewMenu />
-          <span className="company" title="Company in the ERP">
-            <Building2 aria-hidden />
-            <span className="company-name">{boot.company ?? "No default company"}</span>
-          </span>
-          <Notifications />
-          <UserMenu />
-        </div>
-      </header>
-      <main className="shell-sheet" id="main">
-        <Outlet />
-      </main>
+    <div className="app">
+      <div className="side">
+        <Rail modules={modules} open={module.key} onOpen={setOpenKey} onSearch={() => setPalette(true)} />
+        <ModulePanel modules={modules} module={module} active={active} onOpen={setOpenKey} />
+      </div>
+      <div className="main">
+        <header className="mobile-bar">
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            aria-label="Open menu"
+            onClick={() => setDrawer(true)}
+          >
+            <Menu aria-hidden />
+          </button>
+          <span className="mobile-title">{module.label}</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            aria-label="Search"
+            onClick={() => setPalette(true)}
+          >
+            <Search aria-hidden />
+          </button>
+        </header>
+        <main className="content" id="main">
+          <Outlet />
+        </main>
+      </div>
       <Palette open={palette} setOpen={setPalette} />
-      <Dialog.Root open={nav} onOpenChange={setNav}>
+      <Dialog.Root open={drawer} onOpenChange={setDrawer}>
         <Dialog.Portal>
           <Dialog.Overlay className="overlay" />
           <Dialog.Content className="drawer" aria-describedby={undefined}>
             <Dialog.Title className="sr-only">Menu</Dialog.Title>
-            <Brand />
-            <SideNav onNavigate={() => setNav(false)} />
+            <Rail modules={modules} open={module.key} onOpen={setOpenKey} onSearch={() => setPalette(true)} />
+            <ModulePanel
+              modules={modules}
+              module={module}
+              active={active}
+              onOpen={setOpenKey}
+              onNavigate={() => setDrawer(false)}
+            />
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

@@ -3,20 +3,34 @@ import { Send, Wallet } from "lucide-react";
 import { useState } from "react";
 import { type Doc, insert, mapDoc, type Row, submit } from "@/api/frappe";
 import { can, useSession } from "@/api/session";
-import { ActionButton, ChildTable, DocFrame, ListPage, useAction, useDoc } from "@/components/doc";
+import {
+  ActionButton,
+  ChildTable,
+  Connections,
+  childValues,
+  DocFrame,
+  ListPage,
+  nameIn,
+  RefLink,
+  useAction,
+  useDoc,
+} from "@/components/doc";
 import { DateField, LinkField, NumberField, TextField } from "@/components/fields";
 import { ReportView } from "@/components/ReportView";
 import { ErrorNote, Facts, Note, PageHeader, Panel, StatusChip } from "@/components/ui";
 import { putDraft, takeDraft } from "@/lib/drafts";
 import { formatDate, formatMoney, formatQty, isoDate } from "@/lib/format";
+import { routeFor } from "@/nav";
 
-const C = { label: "Finance" };
+const C = { label: "Accounts" };
 const PE_API = "erpnext.accounts.doctype.payment_entry.payment_entry";
 const enc = encodeURIComponent;
+const DN_API = "erpnext.stock.doctype.delivery_note.delivery_note";
 
 /* ======================= Sales Invoices ======================= */
 
 export function InvoiceList() {
+  const navigate = useNavigate();
   return (
     <ListPage<Row>
       title="Sales Invoices"
@@ -53,11 +67,34 @@ export function InvoiceList() {
         { label: "All", filters: {} },
       ]}
       detail={(r) => `/accounts/invoices/${enc(String(r.name))}`}
-      note={
-        <Note>
-          Invoices start from a dispatched delivery note, so stock leaves only once, through the delivery.
-        </Note>
-      }
+      start={{
+        label: "Create invoice",
+        title: "Invoice a delivery",
+        hint: "Dispatched deliveries not yet fully billed. Invoices start from the delivery, so stock leaves only once.",
+        doctype: "Delivery Note",
+        fields: ["name", "customer", "posting_date", "grand_total", "currency", "per_billed"],
+        filters: [
+          ["docstatus", "=", 1],
+          ["per_billed", "<", 100],
+          ["status", "!=", "Closed"],
+        ],
+        columns: [
+          { key: "name", label: "Delivery", render: (r) => <span className="mono">{String(r.name)}</span> },
+          { key: "customer", label: "Customer" },
+          { key: "posting_date", label: "Date", render: (r) => formatDate(r.posting_date) },
+          {
+            key: "grand_total",
+            label: "Value",
+            num: true,
+            render: (r) => formatMoney(r.grand_total, String(r.currency)),
+          },
+        ],
+        run: async (r) => {
+          const draft = await mapDoc(`${DN_API}.make_sales_invoice`, { source_name: r.name });
+          const si = await insert({ ...(draft as Row), doctype: "Sales Invoice" });
+          await navigate({ to: `/accounts/invoices/${enc(si.name)}` });
+        },
+      }}
       columns={[
         { key: "name", label: "Invoice", render: (r) => <span className="mono">{String(r.name)}</span> },
         { key: "customer", label: "Customer" },
@@ -130,7 +167,7 @@ export function InvoicePage() {
           <Panel>
             <Facts
               items={[
-                ["Customer", String(doc.customer)],
+                ["Customer", <RefLink key="c" doctype="Customer" name={doc.customer} />],
                 ["Channel", String(doc.fo_sales_channel ?? "—")],
                 ["Posting date", formatDate(doc.posting_date)],
                 ["Due", formatDate(doc.due_date)],
@@ -174,11 +211,33 @@ export function InvoicePage() {
                 {
                   key: "delivery_note",
                   label: "Delivery note",
-                  render: (r) => <span className="mono">{String(r.delivery_note ?? "—")}</span>,
+                  render: (r) => <RefLink doctype="Delivery Note" name={r.delivery_note} />,
                 },
               ]}
             />
           </Panel>
+          <Connections
+            items={[
+              {
+                label: "Sales Orders",
+                doctype: "Sales Order",
+                filters: nameIn(childValues(doc.items, "sales_order")),
+                route: (n) => routeFor("Sales Order", n),
+              },
+              {
+                label: "Deliveries",
+                doctype: "Delivery Note",
+                filters: nameIn(childValues(doc.items, "delivery_note")),
+                route: (n) => routeFor("Delivery Note", n),
+              },
+              {
+                label: "Payments",
+                doctype: "Payment Entry",
+                filters: [["Payment Entry Reference", "reference_name", "=", name]],
+                route: (n) => routeFor("Payment Entry", n),
+              },
+            ]}
+          />
         </>
       )}
     </DocFrame>
@@ -188,6 +247,7 @@ export function InvoicePage() {
 /* ======================= Payments ======================= */
 
 export function PaymentList() {
+  const navigate = useNavigate();
   return (
     <ListPage<Row>
       title="Payments"
@@ -210,7 +270,32 @@ export function PaymentList() {
         { label: "All", filters: {} },
       ]}
       detail={(r) => `/accounts/payments/${enc(String(r.name))}`}
-      note={<Note>Record a customer payment from its invoice (“Record payment”).</Note>}
+      start={{
+        label: "Record payment",
+        title: "Receive payment against an invoice",
+        hint: "Submitted invoices with an outstanding amount, oldest due first.",
+        doctype: "Sales Invoice",
+        fields: ["name", "customer", "due_date", "outstanding_amount", "currency"],
+        filters: [
+          ["docstatus", "=", 1],
+          ["outstanding_amount", ">", 0],
+        ],
+        columns: [
+          { key: "name", label: "Invoice", render: (r) => <span className="mono">{String(r.name)}</span> },
+          { key: "customer", label: "Customer" },
+          { key: "due_date", label: "Due", render: (r) => formatDate(r.due_date) },
+          {
+            key: "outstanding_amount",
+            label: "Outstanding",
+            num: true,
+            render: (r) => formatMoney(r.outstanding_amount, String(r.currency)),
+          },
+        ],
+        run: async (r) => {
+          const d = await mapDoc(`${PE_API}.get_payment_entry`, { dt: "Sales Invoice", dn: r.name });
+          await navigate({ to: "/accounts/payments/new", search: { draft: putDraft(d as Row) } });
+        },
+      }}
       columns={[
         { key: "name", label: "Payment", render: (r) => <span className="mono">{String(r.name)}</span> },
         { key: "payment_type", label: "Type" },
@@ -374,7 +459,10 @@ export function PaymentPage() {
             <Facts
               items={[
                 ["Type", String(doc.payment_type)],
-                ["Party", String(doc.party)],
+                [
+                  "Party",
+                  <RefLink key="p" doctype={String(doc.party_type ?? "Customer")} name={doc.party} />,
+                ],
                 ["Posting date", formatDate(doc.posting_date)],
                 ["Amount", formatMoney(doc.paid_amount, String(doc.paid_to_account_currency ?? "INR"))],
                 ["Mode", String(doc.mode_of_payment ?? "—")],
@@ -392,7 +480,7 @@ export function PaymentPage() {
                 {
                   key: "reference_name",
                   label: "Document",
-                  render: (r) => <span className="mono">{String(r.reference_name)}</span>,
+                  render: (r) => <RefLink doctype={String(r.reference_doctype)} name={r.reference_name} />,
                 },
                 {
                   key: "allocated_amount",
