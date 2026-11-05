@@ -1,12 +1,14 @@
 # Handoff notes
 
 Context for whoever continues this work: FlowHQ, the client, or a new Claude Code session in a fresh
-container. Last updated 2026-11-05, **during Milestone 6** (Parts A-D built and tested, Parts E-F not finished).
+container. Last updated 2026-11-05, **after Milestone 6** (all six Phase 1 build milestones done on
+development benches with SAMPLE data).
 
 ## Where things stand
 
-- **Branch:** `claude/cool-shannon-dszfvp` (continues `claude/festive-feynman-8mue4s`; history kept,
-  nothing rewritten). Everything is committed and pushed. No pull request has been opened.
+- **Branch:** `claude/festive-feynman-8mue4s` (history kept, nothing rewritten; Milestone 6 started
+  on `claude/cool-shannon-dszfvp` and continues here). Everything is committed and pushed. No pull
+  request has been opened.
 - **Stack (pinned, verified):**
   - Frappe v16.55.2 and ERPNext v16.53.0;
   - CPython 3.14 and Node 24;
@@ -22,90 +24,30 @@ container. Last updated 2026-11-05, **during Milestone 6** (Parts A-D built and 
   - production: SAMPLE BOMs, two-stage Work Orders, configurable production warehouses, wastage
     write-offs, batch label (`PRODUCTION_WORKFLOW.md`);
   - sales, dispatch and accounts: channels and D2C import, credit limits, available-to-sell, FEFO
-    pick and reservation, shelf-life segregation, dispatch records, invoices from deliveries,
-    payments, receivables, dashboard (`SALES_DISPATCH_ACCOUNTS.md`). No GST (no GSTIN).
-- **Test evidence:** `PHASE_1_TEST_RESULTS.md`.
-  - 93 tests pass (77 earlier + 16 production) on the dev bench; 92 passed twice in a row on a clean,
-    independent bench before the last one-test fix; a site installed from nothing has the full setup.
-  - 114 tests pass (93 earlier + 21 sales) on the dev bench, on the clean independent bench, and in CI
-    (commit 15f07a0: 114 OK, lint OK).
-  - HTTP acceptance 16/16 (purchase/QC) and 15/15 (production); browser checks 17/17 (QC) and 14/14
-    (production); workers and scheduler verified running jobs.
-- **Milestone 6 (in progress, see the next section).**
+    pick and reservation, dispatch records, invoices from deliveries, payments, receivables
+    (`SALES_DISPATCH_ACCOUNTS.md`). No GST (no GSTIN);
+  - Milestone 6: one shelf-life eligibility rule (D-034); validated all-or-nothing Master Data
+    Import with templates (`MASTER_DATA_IMPORT_GUIDE.md`); seven role workspaces and the read-only
+    Management Viewer role (`ROLES_AND_WORKSPACES.md`); Wastage by Reason and RM PM Requirements
+    reports.
+- **Test evidence (`PHASE_1_TEST_RESULTS.md`), final Milestone 6 code (4709bfe):**
+  - 154 tests OK on the dev bench, on the clean independent bench, and in CI (run 14, lint OK);
+  - HTTP: purchase/QC 16/16, production 15/15, sales 20/20, master data import 19/19;
+  - browser: QC 17/17, production 14/14, sales 25/25, workspaces 55/55.
 - **Not started (by instruction):** R&D, marketplace integrations, courier/Meta integrations, AI,
   eBMR, GST activation, a React frontend, production deployment.
-
-## Milestone 6: state at this handoff
-
-| Part | State | Commit |
-| --- | --- | --- |
-| A. Shelf-life eligibility fix | **done, tested** | `a36f213` |
-| B. Master data import + quality masters | **done, tested** | `11ad141` |
-| C. Role workspaces | **built, unit + browser tested** | `d586567` |
-| D. Reports | **built, tested** | same commit as C |
-| E. Quality gates | **partly done** (list below) | — |
-| F. Documentation | **not done** (list below) | — |
-
-**A. One eligibility rule** (`inventory/batch_eligibility.py`): `check_batch` (expired / below minimum
-shelf life; exactly at the minimum is eligible; setting read on every call) and quantities built
-from ERPNext v16's own primitives (ledger batches, pinned and quantity-only reservations,
-picked-not-reserved). Used by Available to Sell, Sales Order reservation (ineligible pins are
-re-pinned), Pick List suggestions (ineligible rows replaced), Delivery Note (rows without a batch
-get eligible batches when a minimum is set), G6 and segregation (now only a safeguard). 10 new
-tests; a mutation check (fix unhooked) fails 3 of them.
-
-**B. Master Data Import** DocType (`factory_ops/doctype/master_data_import`, engine
-`master_data/importer.py`): Validate (row / column / value / reason, nothing written) -> Import
-(only when clean, re-validates, all-or-nothing in one savepoint, user's own permissions). Types:
-Items, Suppliers, Customers, BOMs, Opening Stock, Item Prices. XLSX/CSV templates generated from the
-same spec (`master_data/templates/`, regenerate with
-`bench --site <site> execute factory_ops.master_data.templates.write_templates`). SAMPLE inspection
-templates per group, brand, workstations, operations. Fixed: QI type now follows the item group
-(BULK In Process, FG Outgoing). 15 tests.
-
-**C. Workspaces** (`setup/workspaces.py`, applied on every migrate): Management, Procurement,
-Stores and Warehouse, Production Floor, Quality Control, Sales and Dispatch, Factory Accounts. Each
-is a role-restricted Workspace page (number cards, charts, shortcuts, link cards) in **its own
-custom navigation module** with a one-item v16 `Sidebar` and a role-restricted Desktop Icon. New
-role **Management Viewer** (read + report only). New ledger-based cards in
-`setup/dashboard_data.py`.
-
-**D. Reports:** `Wastage by Reason` (total = GL wastage account), `RM PM Requirements` (open
-Work Order need vs usable stock, QC Hold, PO, MR, reorder level), Dispatch Eligibility column in
-Stock by QC Status.
-
-**Test state at handoff:** Milestone 6 modules pass on the dev bench: batch eligibility 10/10,
-sales 21/21, lifecycle 13/13, master data 15/15, workspaces 13/13. **Full suite on the dev bench at
-handoff: Ran 152 tests in 554.9 s, OK.** Not yet run for Milestone 6: the clean bench and CI. Browser check `deploy/dev/ui_check_workspaces.js`: **51/51** (each of 10
-SAMPLE users sees exactly their workspaces, each opens in its own shell, cards load, another role's
-workspace is refused, import form and new reports load).
-
-**Still to do for Milestone 6:**
-1. Full suite on the dev bench and on the clean bench (`~/clean-bench`, migrate first); CI on the
-   pushed commit.
-2. Re-run the earlier HTTP acceptances (`acceptance_http.py`, `acceptance_production_http.py`,
-   `acceptance_sales_http.py`) and browser checks (`ui_check*.js`) after the Milestone 6 changes;
-   Part A changed Delivery Note batch choice when a minimum shelf life is set.
-3. An HTTP-level import check: valid and invalid XLSX through the Master Data Import form as SAMPLE
-   users (unit tests cover it in-process only).
-4. Documentation (Part F): DECISIONS D-034 (eligibility), D-035 (import), D-036 (workspaces /
-   navigation modules), D-037 (Management Viewer and dashboard figures), D-038 (reports);
-   IMPLEMENTATION_PROGRESS (the brief calls it PROGRESS.md), REVISED_PHASE_1_ROADMAP (the brief's
-   IMPLEMENTATION_PLAN.md), OPEN_ISSUES, PHASE_1_TEST_RESULTS, a master-data import guide, a role
-   and permission matrix, workspace documentation.
-5. Final report to the client in the brief's ten-point format; Milestone 6 is not complete until
-   1-4 pass.
 
 ## Read these first
 
 1. `IMPLEMENTATION_PROGRESS.md`: what was built per milestone.
-2. `DECISIONS.md`: D-001 to D-033, the why behind every non-obvious choice (D-020 to D-025: production;
-   D-026 to D-033: sales). Milestone 6 decisions are summarised in this file until D-034+ are written.
+2. `DECISIONS.md`: D-001 to D-040, the why behind every non-obvious choice (D-020 to D-025: production;
+   D-026 to D-033: sales; D-034 to D-040: master data, workspaces, reports).
 3. `OPEN_ISSUES.md`: client inputs still needed and technical gaps.
 4. `DATABASE_AND_WORKFLOW_DESIGN.md` §3: the QC workflow as implemented (spike result in §3.2a).
 5. `DEPLOYMENT_RUNBOOK.md`: how to rebuild the environment and run every check.
 6. `PRODUCTION_WORKFLOW.md`: the production flow, its configuration and what is excluded.
 7. `SALES_DISPATCH_ACCOUNTS.md`: the sales-to-cash flow, settings, controls and exclusions.
+8. `MASTER_DATA_IMPORT_GUIDE.md` and `ROLES_AND_WORKSPACES.md`: importing, roles, permissions, workspaces.
 
 ## The container is temporary
 
@@ -187,7 +129,15 @@ Session-specific details you will not need elsewhere:
   boot payload returns nothing, so verify icons in a browser. This site's home screen is the Apps
   screen, not the icon grid.
 - **Number Cards:** named after their label; a Custom-method card is readable only by users who can
-  read its `document_type`. `test_every_card_on_a_workspace_is_readable_by_its_users` guards this.
+  read its `document_type`. A card's figure is computed with the user's permissions **including
+  permlevel**: a filter on a level-1 field fails for a user without level-1 read.
+  `test_every_card_on_a_workspace_computes_for_its_users` guards both.
+- **Frappe Timespan "last month"** is the previous calendar month; use "last 30 days" for a rolling
+  window.
+- **Developer mode hides failures.** Frappe v16 lets an app's Sidebar be saved only in developer mode
+  or during install/migrate. Keep developer mode off on the test site (CI and production have it off),
+  and never re-save unchanged setup documents.
+- **The importer uses the importing user's rights**: a SAMPLE user needs Item Manager etc. to import.
 - **`File.get_content()`** returns text for a CSV and bytes for an XLSX.
 - **ERPNext dates a blank Item Price `valid_from` as today**; duplicate checks must do the same.
 - **`frappe.get_print` with an unknown format name** silently falls back to "Standard"; a missing format
@@ -195,9 +145,9 @@ Session-specific details you will not need elsewhere:
 
 ## Next task
 
-Finish Milestone 6 (the list above). Then, per the roadmap: bank statement import and
-reconciliation; statutory GST only once the client provides the GSTIN and the accountant approves the
-setup; staging deployment when the VPS credentials arrive.
+Per the roadmap: bank statement import and reconciliation; client review of workspaces and roles
+with real users; statutory GST only once the client provides the GSTIN and the accountant approves
+the setup; staging deployment when the VPS credentials arrive.
 
 ## Waiting on the client (blocks real data and statutory setup)
 

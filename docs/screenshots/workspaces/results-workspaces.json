@@ -1,0 +1,277 @@
+[
+ {
+  "name": "management: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Management]"
+ },
+ {
+  "name": "management: Management opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management | sidebar \"Management\""
+ },
+ {
+  "name": "management: Management cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "management: another role's workspace (Procurement) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/procurement"
+ },
+ {
+  "name": "buyer: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Procurement]"
+ },
+ {
+  "name": "buyer: Procurement opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/procurement | sidebar \"Procurement\""
+ },
+ {
+  "name": "buyer: Procurement cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "buyer: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "approver: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Procurement]"
+ },
+ {
+  "name": "approver: Procurement opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/procurement | sidebar \"Procurement\""
+ },
+ {
+  "name": "approver: Procurement cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "approver: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "stores: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Stores and Warehouse]"
+ },
+ {
+  "name": "stores: Stores and Warehouse opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/stores-and-warehouse | sidebar \"Stores and Warehouse\""
+ },
+ {
+  "name": "stores: Stores and Warehouse cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "stores: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "production: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Production Floor, Stores and Warehouse]"
+ },
+ {
+  "name": "production: Production Floor opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/production-floor | sidebar \"Production Floor\""
+ },
+ {
+  "name": "production: Production Floor cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "production: Stores and Warehouse opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/stores-and-warehouse | sidebar \"Stores and Warehouse\""
+ },
+ {
+  "name": "production: Stores and Warehouse cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "production: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "qc: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Quality Control]"
+ },
+ {
+  "name": "qc: Quality Control opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/quality-control | sidebar \"Quality Control\""
+ },
+ {
+  "name": "qc: Quality Control cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "qc: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "qa: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Quality Control]"
+ },
+ {
+  "name": "qa: Quality Control opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/quality-control | sidebar \"Quality Control\""
+ },
+ {
+  "name": "qa: Quality Control cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "qa: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "sales: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Sales and Dispatch, Stores and Warehouse]"
+ },
+ {
+  "name": "sales: Sales and Dispatch opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/sales-and-dispatch | sidebar \"Sales and Dispatch\""
+ },
+ {
+  "name": "sales: Sales and Dispatch cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "sales: Stores and Warehouse opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/stores-and-warehouse | sidebar \"Stores and Warehouse\""
+ },
+ {
+  "name": "sales: Stores and Warehouse cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "sales: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "dispatch: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Sales and Dispatch, Stores and Warehouse]"
+ },
+ {
+  "name": "dispatch: Sales and Dispatch opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/sales-and-dispatch | sidebar \"Sales and Dispatch\""
+ },
+ {
+  "name": "dispatch: Sales and Dispatch cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "dispatch: Stores and Warehouse opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/stores-and-warehouse | sidebar \"Stores and Warehouse\""
+ },
+ {
+  "name": "dispatch: Stores and Warehouse cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "dispatch: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "accounts: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Factory Accounts]"
+ },
+ {
+  "name": "accounts: Factory Accounts opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/factory-accounts | sidebar \"Factory Accounts\""
+ },
+ {
+  "name": "accounts: Factory Accounts cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "accounts: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "masterdata: navigation holds exactly its role workspaces",
+  "ok": true,
+  "detail": "got [Stores and Warehouse]"
+ },
+ {
+  "name": "masterdata: Stores and Warehouse opens in its own shell",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/stores-and-warehouse | sidebar \"Stores and Warehouse\""
+ },
+ {
+  "name": "masterdata: Stores and Warehouse cards load without error dialog",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "masterdata: another role's workspace (Management) is refused",
+  "ok": true,
+  "detail": "http://factory.localhost:8000/desk/management"
+ },
+ {
+  "name": "Master Data Import form offers Download Template",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "report RM PM Requirements loads for stores",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "report Wastage by Reason loads for stores",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "report Stock by QC Status loads for stores",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no JavaScript errors",
+  "ok": true,
+  "detail": ""
+ }
+]

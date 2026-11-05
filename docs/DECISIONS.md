@@ -234,3 +234,82 @@ test `test_a_pick_list_is_not_a_stock_movement`.
 - The "Sales and Dispatch" dashboard uses standard Number Cards and Charts, so each user sees only
   cards for documents they may read.
 - No GST configuration and no GSTIN until the client's registration and the accountant's approval.
+
+## Milestone 6: master data, workspaces and reports (2026-11-05)
+
+**D-034 One eligibility rule for every dispatch decision.** `inventory/batch_eligibility.py` decides
+whether a batch may be sold, reserved, picked or shipped. A batch is eligible on a date when it has
+not expired and at least *minimum shelf life for dispatch* days remain (exactly the minimum is
+eligible; no expiry date = always eligible). The minimum is read from Factory Ops Settings on every
+call. Quantities come from ERPNext v16's own primitives (ledger batches, batch-pinned and
+quantity-only Stock Reservation Entries, picked-not-reserved Pick List quantities), never a separate
+store. Available to Sell, reservation (an ineligible pinned batch is re-pinned to an eligible one),
+Pick List suggestions (ineligible rows replaced), Delivery Note (rows without a batch get eligible
+batches when a minimum is set), the dispatch guard G6 and segregation all call it. This replaces the
+reliance on segregation in D-028: segregation still runs daily but is now a safeguard, not the rule.
+Consequence (D-027 tightened): **picked stock leaves Available to Sell when it is picked**, and
+reserving it from the Pick List does not subtract it a second time.
+
+**D-035 Master data import: validate everything, then import all or nothing.** A **Master Data
+Import** DocType (`master_data/importer.py`) for Items, Suppliers, Customers, BOMs, Opening Stock and
+Item Prices. ERPNext's Data Import checks fields and links but none of the factory's rules, and
+imports row by row, so a file can end half imported. Here:
+- columns are defined once (`SPECS`); the same definition generates the CSV/XLSX templates in
+  `master_data/templates/`, so a template cannot drift from its rules;
+- **Validate** reports every problem as row / column / value / reason and writes nothing;
+- **Import** is allowed only on a clean file, re-validates, and creates all records inside one
+  savepoint with ERPNext's own documents and **the importing user's own permissions**; any failure
+  rolls back everything;
+- duplicates (inside the file or already in the system) are errors, never merges or overwrites;
+  changes to existing records are made in Desk, where they are audited;
+- an attached new file resets the import to Draft; a finished import cannot take another file;
+- opening stock is one Stock Reconciliation (purpose Opening Stock) on the chosen date, into Usable
+  or QC Hold warehouses only, once per item and company.
+Imported items under RM/PM/BULK/FG get the factory item controls (batch tracking, QC release, COA
+for RM/PM) from the same code as items made in Desk.
+
+**D-036 Role workspaces, one navigation module each.** Seven Desk workspaces (Management,
+Procurement, Stores and Warehouse, Production Floor, Quality Control, Sales and Dispatch, Factory
+Accounts), each a role-restricted Workspace page with number cards, charts, shortcuts and link
+cards, created by `setup/workspaces.py` on every migrate. Frappe v16 navigation is module-based: a
+workspace opens in its module's sidebar shell, and several pages in one module all opened in the
+same shell. So each role workspace is in **its own custom navigation module** with a one-item
+`Sidebar` and a role-restricted Desktop Icon. A sidebar lists only its role-restricted page, because
+Frappe shows a sidebar listing documents to anyone who may read one of them. Workspaces only *show*
+links: every document and report still opens with the user's own permissions, so a workspace can
+never widen access or bypass a QC, batch, expiry or dispatch control. Setup leaves unchanged
+documents alone: Frappe v16 lets an app's Sidebar be saved only in developer mode or during
+install/migrate, and re-saving on every run broke CI (developer mode is now on only on the
+development site, never on the test site, D-039).
+
+**D-037 Management Viewer and dashboard figures.** New role **Management Viewer**: read and report
+only on the documents behind the Management workspace (no create, write, submit or approval), plus
+permlevel-1 read on Batch, because the "Batches Awaiting QC" card filters on the level-1 field
+`fo_qc_status`. ERPNext has no read-only owner role, and giving owners Accounts/QA/Stock Manager would
+give them approval powers. Dashboard figures:
+- stock values per group (RM, PM, BULK, FG, Rejected) and wastage are computed from the stock ledger
+  and GL (`setup/dashboard_data.py`), not from document totals;
+- document counts use standard Number Cards, which Frappe computes with the viewing user's
+  permissions, so a user sees a figure only for documents they may read;
+- rolling windows use Timespan "last 30 days"; Frappe's "last month" is the previous calendar month
+  and would never count this month's batches.
+A test computes every card on every workspace as every user who sees it.
+
+**D-038 Reports added in Milestone 6.**
+- **Wastage by Reason** (Production): wastage write-offs by reason, item and batch; its total equals
+  the wastage GL account for the period.
+- **RM PM Requirements** (Purchase / Production): for open Work Orders, the RM/PM still needed against
+  usable stock, stock in QC Hold, open Purchase Orders and Material Requests, and the reorder level,
+  so a buyer sees what to order and what is only waiting for QC.
+- **Stock by QC Status** gains a *Dispatch Eligibility* column from D-034.
+Everything else on the workspaces is a standard ERPNext report.
+
+**D-039 The test site runs like production (developer mode off).** `setup-dev.sh` used to enable
+developer mode on the test site as well. With it on, Frappe allows edits a customer site refuses,
+which hid a real failure (D-036) until CI caught it. Developer mode is now on only on
+`factory.localhost`.
+
+**D-040 A SAMPLE master-data user.** The importer runs with the importing user's permissions, and no
+SAMPLE user held Item Manager, so none could import items. Added `sample.masterdata@sample.invalid`
+(Item Manager, Purchase/Sales Master Manager, Stock Manager, Stock User). In production, the person
+who maintains masters needs the matching ERPNext master roles; who that is is a client decision.

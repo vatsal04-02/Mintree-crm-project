@@ -78,6 +78,20 @@ python deploy/dev/acceptance_sales_http.py http://127.0.0.1:8000 factory.localho
 node deploy/dev/ui_check_sales.js sites/factory.localhost/private/sample_users.json /tmp/shots <Sales Order> <Delivery Note> <Sales Invoice> <Payment Entry>
 ```
 
+Milestone 6 (same site and credentials; the SAMPLE Master Data user imports, others are refused):
+
+```bash
+python deploy/dev/acceptance_import_http.py http://127.0.0.1:8000 factory.localhost sites/factory.localhost/private/sample_users.json
+```
+
+```bash
+node deploy/dev/ui_check_workspaces.js sites/factory.localhost/private/sample_users.json /tmp/shots
+```
+
+The test site must run with developer mode **off**, as CI and production do (`setup-dev.sh` sets
+this; D-039). With it on, Frappe allows edits a customer site refuses, and tests can pass locally
+that fail in CI.
+
 On the development site `setup_dev_site` also applies the selling rules (SO → DN → SI required,
 dispatch details required, credit controller = Sales Manager). D2C orders are imported from
 `docs/templates/d2c_sales_orders_import.csv` with Data Import (Sales Order, Insert New Records,

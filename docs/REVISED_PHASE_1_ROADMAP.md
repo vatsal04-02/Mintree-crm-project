@@ -1,5 +1,30 @@
 # Revised Phase 1 roadmap: a working factory on ERPNext for about ₹1 lakh
 
+## Status against this plan (2026-11-05, after Milestone 6)
+
+Built and tested on development benches with SAMPLE data only. Nothing is deployed; no real data,
+GSTIN or VPS has been provided. Details: `IMPLEMENTATION_PROGRESS.md`, evidence:
+`PHASE_1_TEST_RESULTS.md`.
+
+| # (§2) | Capability | State |
+| --- | --- | --- |
+| 1 | Staging / production VPS, backups, restore drill | **Not started**: waiting for VPS credentials and approval. Runbook written for development. |
+| 2 | Company, FY, CoA, GST | SAMPLE company only. **GST not configured** (no GSTIN). Real CoA waits on the accountant. |
+| 3 | Precision and rounding | Audit and test design in `DATABASE_AND_WORKFLOW_DESIGN.md`; settings, property test and accountant sign-off **open**. |
+| 4 | Roles, users, role workspaces | **Done (Milestone 6)**: roles and permission matrix, seven role workspaces, Management Viewer. 2FA and real users at deployment. |
+| 5 | Masters import incl. opening stock with batches | **Done (Milestone 6)**: validated all-or-nothing importer, CSV/XLSX templates. Real data from the client. |
+| 6 | Purchase with approval limits, GRN into QC hold | **Done (Milestone 3)**. |
+| 7 | QC quarantine and release | **Done (Milestone 2, validation round)**. |
+| 8 | Production | **Done (Milestone 4)**. |
+| 9 | Sales and dispatch | **Done without GST (Milestone 5)**, one shelf-life eligibility rule (Milestone 6). |
+| 10 | Accounts | Perpetual inventory, payments, AR/AP and statements on standard ERPNext; **bank statement import and reconciliation not yet built** (next milestone). Period lock not configured. |
+| 11 | Tests | 154 automated tests (CI on GitHub Actions); HTTP acceptance and browser checks per milestone. Money-rounding property test still open. Staging scenario waits for staging. |
+| 12 | Training, go-live | Not started. |
+
+Remaining before Phase 1 is done: bank reconciliation, GST/CoA with the accountant, real masters,
+staging and production deployment with backups and a restore drill, rounding property test, UAT,
+training and cutover. The schedule in §7 restarts from the day the client's inputs arrive.
+
 ## 1. Goal
 
 At the end of Phase 1 the factory runs its **physical and financial core** in one system:

@@ -231,6 +231,69 @@ docs/SALES_DISPATCH_ACCOUNTS.md, docs/templates/d2c_sales_orders_import.csv, doc
 **Not included:** GST / India Compliance / e-invoice / e-way bill (no GSTIN); marketplace and courier
 integrations; AI; channel price lists, schemes, delivery trips; bank reconciliation (Milestone 6).
 
+## Milestone 6 — Master data, role workspaces and reports — **done (SAMPLE data)**
+
+Decisions D-034 to D-040. Guides: `MASTER_DATA_IMPORT_GUIDE.md`, `ROLES_AND_WORKSPACES.md`. Test
+evidence: `PHASE_1_TEST_RESULTS.md` (Milestone 6 section).
+
+**Built**
+- **A. One shelf-life eligibility rule** (`inventory/batch_eligibility.py`, D-034) used by Available
+  to Sell, reservation (ineligible pins re-pinned), Pick List suggestions (ineligible rows replaced),
+  Delivery Note (eligible batches chosen when a minimum is set), the dispatch guard G6 and
+  segregation (now a safeguard only). Exactly the minimum is eligible; the setting is read on every
+  call. Picked stock leaves Available to Sell when picked, and is not subtracted again when reserved.
+- **B. Master Data Import** (D-035): Items, Suppliers, Customers, BOMs, Opening Stock, Item Prices.
+  Validate (row / column / value / reason, nothing written) → Import (only a clean file, all or
+  nothing, the user's own permissions). CSV/XLSX templates generated from the same column
+  definitions. SAMPLE quality masters: inspection templates per item group, brand, workstations,
+  operations; the inspection type now follows the item group (BULK In Process, FG Outgoing).
+- **C. Seven role workspaces** (D-036): Management, Procurement, Stores and Warehouse, Production
+  Floor, Quality Control, Sales and Dispatch, Factory Accounts; each in its own navigation module
+  with its own sidebar and role-restricted home icon. New read-only role **Management Viewer**
+  (D-037). Stock-value and wastage figures from the ledger.
+- **D. Reports** (D-038): Wastage by Reason (ties to the wastage GL account), RM PM Requirements
+  (need vs usable stock, QC Hold, open POs and MRs, reorder level), Dispatch Eligibility column in
+  Stock by QC Status.
+- **E. Quality gates:** full suite on the development bench, on an independent clean bench and in
+  CI; all earlier HTTP acceptances and browser checks re-run; new HTTP import check and workspace
+  browser check.
+- **F. Documentation:** this section, D-034 to D-040, the import guide, the role / permission matrix
+  and workspace documentation, test results, open issues, roadmap.
+
+**Found and fixed while validating Milestone 6**
+
+| Problem | Effect | Fix |
+| --- | --- | --- |
+| Setup re-saved every Sidebar on each run; Frappe v16 allows that only in developer mode or migrate | CI red (tests call setup); hidden locally because the test site had developer mode on | unchanged documents are not re-saved; test site runs with developer mode off (D-036, D-039) |
+| "Batches Awaiting QC" filters on permlevel-1 `fo_qc_status`; Management Viewer had only level 0 | Management workspace opened with a Permission Error (browser check) | level-1 read for Management Viewer; new test computes every card as every user (D-037) |
+| "Batches Made (30 days)" used Timespan "last month" (= previous calendar month) | this month's batches never counted | "last 30 days"; test on every rolling card |
+| No SAMPLE user held Item Manager | nobody could import items over HTTP | SAMPLE Master Data user (D-040) |
+| Re-saving unchanged Number Cards in developer mode | timestamp-only diffs re-exported into the app folder | unchanged documents skipped |
+| Sales HTTP check expected picked stock to stay available | failed after Part A | assertions updated to the stricter rule: down by the picked quantity at picking, not again at reservation |
+| Workspace screenshots taken before charts loaded | empty charts in evidence | browser check waits for the network to settle |
+
+**Files**
+```
+apps/factory_ops/factory_ops/
+  inventory/batch_eligibility.py        the eligibility rule (A)
+  master_data/importer.py, templates.py, templates/*.csv|xlsx      import engine and templates (B)
+  factory_ops/doctype/master_data_import/                         the import form (B)
+  setup/sample_company.py                SAMPLE inspection templates, brand, workstations, operations
+  setup/workspaces.py, setup/dashboard_data.py                     workspaces, cards, Management Viewer (C)
+  production/report/wastage_by_reason/, purchase/report/rm_pm_requirements/   reports (D)
+  tests/test_batch_eligibility.py (10), test_master_data.py (15), test_workspaces.py (15)
+deploy/dev/acceptance_import_http.py     HTTP import check (19 checks)
+deploy/dev/ui_check_workspaces.js        browser check of workspaces (55 checks)
+deploy/dev/setup-dev.sh                  developer mode only on the development site
+docs/MASTER_DATA_IMPORT_GUIDE.md, docs/ROLES_AND_WORKSPACES.md, docs/screenshots/workspaces/
+```
+
+**Not included / moved:** bank statement import and reconciliation (listed after Milestone 5 as a
+Milestone 6 candidate; not in the Milestone 6 brief, moved to the next milestone). Real master data,
+real inspection limits and reorder levels wait on the client. Workspaces are Desk pages; no React or
+Frappe UI frontend.
+
 ## Next milestones
-6. Master-data import templates, role workspaces, reports; bank statement import and reconciliation.
-7. Statutory setup once the client provides GSTIN and accountant-approved details; staging deployment.
+7. Bank statement import and reconciliation; client review of workspaces and roles with real users.
+8. Statutory setup once the client provides GSTIN and accountant-approved details; staging deployment
+   once the VPS credentials arrive.

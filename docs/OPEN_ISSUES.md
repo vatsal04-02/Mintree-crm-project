@@ -1,6 +1,6 @@
 # Open issues
 
-Status 2026-11-05, after Milestone 5 (sales, dispatch and accounts).
+Status 2026-11-05, after Milestone 6 (master data, role workspaces and reports).
 
 ## Needs the client
 - **Legal entity, GSTIN, state.** Company setup on a real site, India Compliance, any tax invoice. The
@@ -21,44 +21,68 @@ Status 2026-11-05, after Milestone 5 (sales, dispatch and accounts).
 - **Lawyer:** GPL conveying and `factory_ops` licence wording.
 - **FlowHQ day rate** (Phase 1 scope).
 - **Staging / production VPS credentials** (nothing provisioned).
+- **Milestone 6 decisions for the client:**
+  - who holds Management Viewer, and who maintains master data (needs Item Manager and the master
+    roles, D-040);
+  - whether salespeople should see receivables and buyers QC-hold counts (both hidden now by
+    standard permissions);
+  - whether opening stock of QC items may go straight to Usable warehouses (allowed now) or must be
+    counted into QC Hold and released;
+  - real inspection parameters and limits per template (SAMPLE now), reorder levels per item;
+  - review of the seven workspaces with the people who will use them.
 
 ## Technical, open
-1. **Master-data import templates** (Items, Suppliers, Customers, Warehouses, UOMs, BOMs, opening
-   stock, batches) not yet produced; the SAMPLE masters are created in code. Milestone 6.
-2. **Role workspaces and dashboards** (Purchase, Stores, QC, Production, Dispatch, Accounts,
-   Management) not yet built; screens are reached through ERPNext's standard workspaces. Milestone 6.
-3. **ERPNext's default warehouses** (Stores, Work In Progress, Finished Goods - SMM) created by the
+1. **ERPNext's default warehouses** (Stores, Work In Progress, Finished Goods - SMM) created by the
    setup wizard are untyped, so the guards treat them as usable. Disable them or map them before go-live.
-4. **Opening stock path.** Stock Entry *Material Receipt* of QC items into QC Hold is allowed (opening
-   balances, migration); it does not capture supplier batch data. Decide whether opening stock must
-   go through an import template instead.
-5. **UI error-dialog detection** in `deploy/dev/ui_check.js` was added after a screenshot review caught
+2. **Opening stock path.** The Opening Stock import (Milestone 6) captures batches, dates and supplier
+   batch numbers and allows Usable or QC Hold warehouses. Stock Entry *Material Receipt* into QC Hold
+   is still allowed and captures no supplier batch data. Client to decide whether opening stock of
+   QC items must go through QC Hold, and whether Material Receipt should then be closed.
+3. **UI error-dialog detection** in `deploy/dev/ui_check.js` was added after a screenshot review caught
    a permission popup the text checks missed; the selector has not itself been proven against a
    deliberately broken page.
-6. **Hindi UI** not reviewed (English only in Phase 1).
-7. **Production, deferred by phase:** barcode/QR and ZPL on the batch label, yield variance alert,
+4. **Hindi UI** not reviewed (English only in Phase 1).
+5. **Production, deferred by phase:** barcode/QR and ZPL on the batch label, yield variance alert,
    rework orders linked to the original batch, electronic batch record, operations and job cards,
    machine-breakdown blocking (Phase 4). Production Plan / MRP is standard ERPNext but not yet
    configured or tested.
-8. **Batch label PDF needs the Chrome PDF generator.** Frappe v16 drives a headless Chromium; the
+6. **Batch label PDF needs the Chrome PDF generator.** Frappe v16 drives a headless Chromium; the
    staging image must include it (or the label falls back to whatever generator Print Settings name).
    wkhtmltopdf is not installed in development and is not needed.
-9. **ERPNext's own default warehouses for manufacturing** (Manufacturing Settings default WIP / FG
+7. **ERPNext's own default warehouses for manufacturing** (Manufacturing Settings default WIP / FG
    warehouses) are left empty; factory_ops fills Work Orders from the Company and Item Defaults instead.
    Anyone setting them in Manufacturing Settings would not bypass the guards, but would make defaults
    inconsistent; document in training.
-10. **A closed Work Order's leftovers.** ERPNext returns components only from a Completed or Closed
+8. **A closed Work Order's leftovers.** ERPNext returns components only from a Completed or Closed
     order, so a short fill must be closed before its leftovers can go back to stores (tested).
-11. **Docker Hub rate limit.** Pulling `mariadb` / `valkey` anonymously can fail with HTTP 429; the
+9. **Docker Hub rate limit.** Pulling `mariadb` / `valkey` anonymously can fail with HTTP 429; the
     runbook gives the mirror workaround (development only).
-12. **GST not configured** (no GSTIN, none invented). Development invoices are not tax documents.
+10. **GST not configured** (no GSTIN, none invented). Development invoices are not tax documents.
     India Compliance, tax templates, HSN codes, e-invoice / e-way bill only after registration
     and the accountant's sign-off.
-13. **Marketplace and courier integrations** are not built (Phase 5/7). Orders are entered or imported
+11. **Marketplace and courier integrations** are not built (Phase 5/7). Orders are entered or imported
     by hand; AWB numbers are typed.
-14. **Shelf-life segregation runs daily.** If the minimum shelf life is raised during the day, run
-    `segregate_now` (Stock Manager) or a Pick List may propose a now-short-dated batch and be refused.
-15. **Pre-existing lint warnings** in `deploy/dev/acceptance_http.py` (semicolons; dev script, not in CI lint).
+12. **Shelf-life segregation runs daily**, but is now only a safeguard: reservation, Pick List and
+    Delivery Note apply the minimum shelf life themselves on every call (D-034). Short-dated stock
+    stays in Usable warehouses until the next run or `segregate_now`; it is not sold meanwhile.
+13. **Pre-existing lint warnings** in `deploy/dev/acceptance_http.py` (semicolons; dev script, not in CI lint).
+14. **Bank statement import and reconciliation** not built (moved from Milestone 6 to the next
+    milestone).
+15. **Workspaces are rebuilt from code on every migrate.** Edits made in the Desk workspace editor
+    are overwritten; change `setup/workspaces.py` instead. App Sidebars cannot be saved from the UI
+    outside developer mode (Frappe v16).
+16. **Master data import does not update existing records** (by design, D-035). Bulk corrections
+    after go-live need Desk edits or a separate, reviewed update path.
+
+## Closed in Milestone 6
+- Master-data import templates and a validated, all-or-nothing importer (D-035,
+  `MASTER_DATA_IMPORT_GUIDE.md`).
+- Role workspaces and dashboards for management, purchase, stores, production, QC, sales/dispatch and
+  accounts (D-036, D-037, `ROLES_AND_WORKSPACES.md`).
+- Minimum shelf life now enforced by one rule in reservation, picking and dispatch, not only by the
+  daily segregation (D-034); issue "segregation runs daily" is now only a safeguard.
+- CI red since the workspace commit (Sidebar save outside developer mode), fixed; the test site now
+  runs with developer mode off (D-039).
 
 ## Closed in Milestone 5
 - Sales, dispatch and accounts on standard ERPNext with factory_ops controls (`SALES_DISPATCH_ACCOUNTS.md`).

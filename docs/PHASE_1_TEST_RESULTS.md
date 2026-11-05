@@ -1,5 +1,74 @@
 # Phase 1 test results
 
+## Milestone 6: master data, role workspaces and reports (2026-11-05)
+
+Every number here comes from a run in this environment on the final Milestone 6 code (commit
+4709bfe; the commit after it changes documentation and screenshots only). Nothing is estimated.
+
+### Summary
+
+| Layer | Where | Result |
+| --- | --- | --- |
+| CI, GitHub Actions run 14 (commit 4709bfe) | ubuntu-24.04, fresh site, developer mode off | **Ran 154 tests in 253.7 s — OK**; lint "All checks passed!" |
+| Full automated suite | dev bench `test.localhost`, developer mode off | **Ran 154 tests in 325.7 s — OK** (114 earlier + 40 new) |
+| Full automated suite | clean, independent bench (user `cleandev`, fresh clone, own MariaDB / Valkey, ports 3308 / 13101 / 11101), pulled to 4709bfe and migrated | **Ran 154 tests in 330.8 s — OK** |
+| HTTP, Master Data Import (`acceptance_import_http.py`, new) | dev site, REST, SAMPLE users | **19/19** |
+| HTTP acceptance, purchase/QC (`acceptance_http.py`) | dev site | **16/16** |
+| HTTP acceptance, production (`acceptance_production_http.py`) | dev site | **15/15** |
+| HTTP acceptance, sales (`acceptance_sales_http.py`, updated for D-034) | dev site | **20/20** |
+| Browser, workspaces (`ui_check_workspaces.js`, new) | Playwright, 11 SAMPLE users | **55/55**; screenshots `docs/screenshots/workspaces/` |
+| Browser, QC / production / sales (`ui_check.js`, `ui_check_production.js`, `ui_check_sales.js`) | same site, after the Milestone 6 changes | **17/17**, **14/14**, **25/25** |
+
+CI runs 12 and 13 (commits f2862b7, ee6b38e) **failed**: see the first row of "Failures found" below.
+They were the first CI runs after the workspace commit; the local benches passed because their test
+site had developer mode on.
+
+One browser re-run first reported 16/17 for the QC check: the held-batch argument was a produced FG
+batch, and the check looks for a supplier lot on the batch form. Re-run with a supplier-received RM
+batch (as the runbook intends): 17/17. Not a product defect, recorded for completeness.
+
+Reviewing the first workspace screenshots showed "Batches Made (30 days)" = 0 on the Management
+workspace, although the site had 6 manufacture entries dated today. The development site had not
+been migrated after the "last 30 days" fix and still held "last month" (the test site and CI build
+the card fresh, so they were right). After `bench --site factory.localhost migrate` the card shows
+6, equal to the database count, and the browser check passed 55/55 again; the committed screenshots
+are from that run. Lesson: migrate the development site after changing setup code, before taking
+evidence.
+
+### New tests (40)
+
+| Module | Tests |
+| --- | --- |
+| `test_batch_eligibility.py` (10) | threshold boundaries (exactly the minimum is eligible); zero minimum keeps ERPNext's behaviour; the transaction date is used; Available to Sell counts eligible batches only; zero minimum sells short-dated but never expired; raising the minimum applies at once without segregation; Available to Sell and Pick List agree; Delivery Note refuses an ineligible batch; reservations and picks subtracted once; a reserved batch that becomes ineligible is refused at dispatch |
+| `test_master_data.py` (15) | every template round-trips and documents its rules; a valid file imports all rows with factory controls; an invalid file reports every problem and imports nothing; a failure during import rolls back every record; a file changed after validation is checked again; the XLSX template with examples validates; the target DocType's permission is needed; suppliers and duplicates; customers with credit limit need a company; two-stage BOMs with sub-assembly; BOM errors and warnings; opening stock posts once with batches and QC status; invalid opening stock; prices; inspection templates per group and inspection type from the item group |
+| `test_workspaces.py` (15) | every link, card and chart exists; names are valid Desk routes; setup is idempotent; each role sees its own workspaces and icons; every card is readable **and computes** for its users; rolling-window cards include today; Management Viewer reads but never changes; no screen lets anyone move held stock; stock-value cards equal the Stock Balance report; wastage card, report and ledger agree; document cards count what they say; empty data handled; RM PM Requirements need / supply / shortfall; Dispatch Eligibility column follows the central rule |
+
+**Mutation checks** (the fix removed, the test must fail): eligibility hooks unhooked → 3 eligibility
+tests fail; Management Viewer level-1 read removed → the card-computing test fails with the same
+Permission Error the browser showed; Timespan back to "last month" → the rolling-window test fails;
+sidebar save reverted with developer mode off → the CI error ("Not Editable") reproduced locally.
+
+### Failures found and fixed in Milestone 6
+
+| Found by | Problem | Fix |
+| --- | --- | --- |
+| CI runs 12, 13 | Setup re-saved app Sidebars on every run; Frappe v16 allows that only in developer mode or migrate. Local benches hid it (test site had developer mode on) | unchanged documents not re-saved; test site runs with developer mode off (D-036, D-039) |
+| Browser check (screenshot) | Management workspace opened with a Permission Error: "Batches Awaiting QC" filters on permlevel-1 `fo_qc_status` | level-1 read for Management Viewer; new test computes each card as each user (D-037) |
+| Review of card figures | "Batches Made (30 days)" used Frappe's "last month" = previous calendar month | "last 30 days"; test on every rolling card |
+| HTTP import check | no SAMPLE user could import items (importer uses the user's rights; none had Item Manager) | SAMPLE Master Data user (D-040) |
+| HTTP sales check | expected picked stock to remain available to sell | assertions updated to the stricter D-034 rule (down by the picked quantity at picking, not again at reservation) |
+| Developer-mode re-export | unchanged Number Card re-exported into the app folder (timestamp-only diff) | unchanged documents skipped; diff reverted |
+| Workspace screenshots | charts captured before their data loaded | browser check waits for the network to settle |
+
+### Coverage gaps (honest list)
+
+- Workspaces were checked with SAMPLE users and SAMPLE data, not by the people who will use them.
+- Import was exercised with files built from the templates; real client files (encodings, merged
+  cells, Excel date formats from other locales) have not been seen.
+- Opening stock import tested on a fresh company only; a cut-over on a company with transactions is
+  refused by design but the cut-over procedure itself is not rehearsed.
+- No load test: imports of thousands of rows have not been timed.
+
 ## Milestone 5: sales, dispatch and accounts (2026-11-05)
 
 Every number here comes from a run in this environment. Nothing is estimated.
