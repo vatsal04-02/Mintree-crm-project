@@ -104,3 +104,52 @@ Test references: `B:` = backend test module in `apps/factory_ops/factory_ops/tes
 | AI features | NOT IMPLEMENTED (no provider, no keys, nothing simulated) |
 | CRM, R&D, eBMR, analytics | NOT IMPLEMENTED — listed on `/planned` |
 | GST e-invoice / e-way bill | CONFIGURATION REQUIRED, BLOCKED on GSTIN and accountant sign-off |
+
+## 7. R&D and formulation — IMPLEMENTED (next phase)
+
+| Capability | DocTypes / methods | Factory OS screen | Permission (server) | Tests |
+|---|---|---|---|---|
+| Formulation library, versions, % and kg | Formulation (+ ingredients), Ingredient Category, Item ingredient fields | `/research/formulations`, `/new`, `/:name`, `/:name/edit` | R&D Chemist / Manager | test_research; e2e rnd |
+| Validation (total, required ingredients, inactive / non-RM materials) | Formulation.validate | form, refusal shown | server | test_research; e2e rnd (95 % refused) |
+| Comparison with the previous version | client-side diff of two server documents | formulation page | read | e2e rnd |
+| Approval Draft → Review → Trial → Approved / Rejected → Archived | `apply_action` | formulation page actions | roles per action | test_research; e2e rnd |
+| Projects, trials, stability | Research Project, Formulation Trial (submit), Stability Study (+ readings) | `/research/projects`, `/trials`, `/stability` | R&D roles | test_research; e2e rnd |
+| Approved version → BOM with traceability | `create_bom`; BOM `fo_formulation`, `fo_formulation_version` | "Create BOM" | BOM create + submit | test_research; e2e rnd |
+
+## 8. Maintenance — IMPLEMENTED on ERPNext assets (next phase)
+
+| Capability | DocTypes / methods | Factory OS screen | Permission | Tests |
+|---|---|---|---|---|
+| Asset register | Asset (+ equipment fields); `register_asset` | `/maintenance/assets`, `/new`, `/:name` | Maintenance Manager | test_maintenance; e2e |
+| Preventive schedules, checklists, assignees, reminders | Asset Maintenance, Team, Log (ERPNext) | `/maintenance/schedules`, `/tasks` | Maintenance roles | test_maintenance; e2e |
+| Breakdowns, downtime, root cause, closure approval | Asset Repair (+ breakdown fields) | `/maintenance/breakdowns` | technician reports and repairs; manager closes | test_maintenance; e2e |
+| Spare parts issue and cost | Asset Repair consumed items → Stock Entry (ERPNext) | breakdown page | Stock User to issue | test_maintenance; e2e |
+| Dashboard | `api.maintenance.dashboard` | `/maintenance` | per section | test_maintenance; e2e |
+
+## 9. Marketplaces — management IMPLEMENTED, connectors NOT CONNECTED (next phase)
+
+| Capability | DocTypes / methods | Factory OS screen | Permission | Tests |
+|---|---|---|---|---|
+| Channels and honest connection state | Marketplace Channel; `connectors.py` | `/marketplace`, `/channels/:name` | Marketplace Manager | test_marketplace; e2e |
+| Catalogue mapping (no duplicate items) | Marketplace Listing | `/marketplace/listings` | Marketplace roles | test_marketplace; e2e |
+| Stock to publish from available-to-sell, no double counting | `service.allocation` | `/marketplace/inventory` | Marketplace roles | test_marketplace; e2e |
+| Orders once, → Sales Order | Marketplace Order; `make_sales_order` | `/marketplace/orders` | Marketplace roles + Sales User | test_marketplace; e2e |
+| Returns into QC Hold; settlements and reconciliation | Marketplace Return, Marketplace Settlement | `/marketplace/returns`, `/settlements` | Marketplace / Accounts roles | test_marketplace |
+| Sync engine, retries, idempotency, webhook | Marketplace Sync Log; `service.run_operation`; `api.marketplace.webhook` | channel page log | server | test_marketplace (mocked connector) |
+
+## 10. Brand & marketing — IMPLEMENTED, Meta NOT CONNECTED (next phase)
+
+| Capability | DocTypes / methods | Factory OS screen | Permission | Tests |
+|---|---|---|---|---|
+| Campaigns with approval | Marketing Campaign | `/marketing/campaigns` | Marketing roles | test_marketing; e2e |
+| Content calendar, creatives, captions, approval | Marketing Content | `/marketing/content` | Marketing roles | test_marketing; e2e |
+| Performance with source, ratios only from inputs | Campaign Performance | campaign page; `/marketing` | Marketing roles, Management read | test_marketing; e2e |
+| Meta connection state | Meta Connection | `/marketing/meta` | Marketing Manager | test_marketing; e2e |
+
+## 11. Integration Centre — states from records
+
+`/integrations` reads `api.integrations.integrations`:
+- marketplace channels and Meta from their records and logs;
+- e-mail from Frappe's Email Account and Email Queue;
+- WhatsApp, couriers, bank feeds and settlement feeds as **Not implemented**;
+- GST as **Not configured**.

@@ -225,8 +225,10 @@ try {
     let a = await mgr.doc("Asset", asset);
     check("maintenance manager registers equipment in React (submitted ERPNext Asset)", a.docstatus === 1 && a.fo_equipment_type === "Filling Machine" && a.fo_operational_status === "Active", asset);
 
-    const team = "SAMPLE Maintenance Team";
-    if (!(await mgr.list("Asset Maintenance Team", { name: team })).length) {
+    // reuse any existing team (the demo site seeds one); otherwise set one up
+    const teams = await mgr.list("Asset Maintenance Team", {}, ["name"]);
+    const team = teams[0]?.name ?? "SAMPLE Maintenance Team";
+    if (!teams.length) {
       const r = await mgr.insert({ doctype: "Asset Maintenance Team", maintenance_team_name: team, company: "SAMPLE Mintree Manufacturing", maintenance_manager: "sample.maintmanager@sample.invalid",
         maintenance_team_members: [{ team_member: "sample.maintenance@sample.invalid", maintenance_role: "Maintenance User" }] });
       check("maintenance team set up", r.status === 200);

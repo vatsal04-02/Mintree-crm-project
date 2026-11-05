@@ -54,6 +54,33 @@ local demo tooling** (branches `claude/cool-shannon-dszfvp` and `claude/festive-
   `chown -R frappe:frappe <repo>` fixes it.
 
 
+## Next phase (latest): R&D, Maintenance, Marketplaces, Marketing in React
+
+- Branch `claude/festive-feynman-8mue4s` now also contains `claude/cool-shannon-dszfvp`
+  (merged; that branch had used D-040 too, so the Milestone 6 decision became D-046).
+- New backend modules: `research/`, `maintenance/` (on ERPNext assets), `marketplace/` and
+  `marketing/`, with APIs in `api/`. React modules are in `apps/web/src/modules/` with the same names.
+- Read first: `FACTORY_OS_NEXT_PHASE_PLAN.md`, `IMPLEMENTATION_STATUS.md`, the four
+  `MINTREE_*_MODULE.md` docs, and `DEMO_GUIDE.md` (§1 extraction on an internet-connected machine,
+  §4b new-module walkthrough).
+- Tests:
+  - backend 203;
+  - front-end unit 22;
+  - e2e 44 (`e2e/run.mjs`) + 47 (`e2e/modules.mjs`, sections rnd, maintenance, marketplace,
+    marketing).
+- No marketplace or Meta connection exists. States are derived on the server and can never be set
+  to Connected by hand.
+- Container restarts:
+  - start `dockerd`;
+  - `docker start` the six containers;
+  - update the proxy port in `~/.devenv`;
+  - `chown -R frappe:frappe` the repository;
+  - rebuild the front end (`CI=true pnpm install`, then `pnpm build`, with Node 24 from
+    `/opt/node24`);
+  - restart the dev server.
+
+  The dev server runs with `--noreload`, so restart it after backend changes.
+
 ## Local demo (after Milestone 6)
 
 - `docs/DEMO_GUIDE.md`: extract the public catalogue, build `demo.localhost` with

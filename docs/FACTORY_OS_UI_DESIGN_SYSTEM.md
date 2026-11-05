@@ -89,3 +89,85 @@ the text caret take palette colours; numerals are tabular everywhere.
 
 Top bars that duplicate the sidebar, monospace as decoration, gradients, glass, big rounded cards, decorative shadows, hero metrics, sparklines, emoji icons,
 eyebrow labels above headings, invented figures, chat-first layouts, fake "Connect" buttons.
+
+## Next-phase additions (2026-11-05)
+
+### Brand palette
+
+The palette is still the deep-mint placeholder (`--accent: #1f6f55`). The brief asks for a palette
+derived from Mintree's website, but `vmintree.in` cannot be reached from the development
+environment. The accent is one token, so a website-derived colour can replace it in one place
+(`tokens.css`) once the site is inspected. Every other colour is a status colour and stays.
+
+### Empty, loading and error states (every list and report)
+
+| Condition | What the page shows |
+| --- | --- |
+| Loading | flat skeleton rows in the table (no spinner pages) |
+| Error | `ErrorNote` with the server's own message and title |
+| No records at all | `EmptyState` **in place of the table**: why the list is empty, what must exist first (numbered), and next actions linking to real pages; actions the user's permissions do not open are removed (same test as the navigation) |
+| Filtered tab empty | "No … in ‘tab’", with a button to switch to the unfiltered tab |
+| Search finds nothing | "No … match ‘text’", with **Clear search** |
+
+The guidance per DocType and report lives in one place (`lib/empty.ts`). Available to Sell explains
+the release, warehouse, expiry, shelf-life and reservation rules, and links the QC queue, work
+orders and stock by QC status.
+
+### Lists
+
+- Server-side **search** over the document number and the party / item it concerns.
+- **Paging** in steps of 50 ("Show 50 more").
+- The count shows "N shown" or "N+ shown".
+
+### New components
+
+| Component | Rule |
+| --- | --- |
+| `EmptyState` | 3 px accent left rule on the raised surface; title, reason, numbered prerequisites, actions on the right (stacked on phones) |
+| KPI strip (`.kpi-strip`) | **one** bordered row of counts or amounts taken from records, cells divided by hairlines; 22 px tabular figure, 12 px label. Not cards, never decorative, never estimated. A figure that cannot be computed shows "—" with the reason (e.g. "no leads recorded") |
+| Inline bar (`.bar-cell`) | a value drawn against its column's maximum inside a table, with the value printed beside it. Used for monthly downtime and weekly ad spend instead of a chart library |
+| `DateTimeField` | date and time; Frappe's `YYYY-MM-DD HH:mm:ss` |
+| `text-ok` / `text-hold` | inline state of a figure against its target (e.g. formula total 95 % of 100 %) |
+
+### New status tones
+
+- **R&D:**
+  - Under Review: hold;
+  - Trial: progress;
+  - Approved and Pass: released;
+  - Fail: rejected;
+  - Archived: neutral.
+- **Maintenance:**
+  - Active: released;
+  - Breakdown: rejected;
+  - Under Maintenance: hold;
+  - Idle and Retired: neutral.
+  - Severity uses Critical / High = rejected, Medium = hold, Low = neutral.
+- **Marketing:**
+  - Awaiting Approval and In Review: hold;
+  - Live and Published: released;
+  - Scheduled: progress;
+  - Paused: hold;
+  - Idea: neutral.
+- **Connection states:**
+  - Connected: released;
+  - Error: rejected;
+  - Synchronising: progress;
+  - Not implemented: neutral;
+  - every other state (Not configured, Awaiting credentials, Access required): hold.
+
+### Navigation
+
+New modules in the rail, each shown only when the role can open one of its pages:
+- **R&D** (microscope);
+- **Maintenance** (wrench);
+- **Marketplaces** (store);
+- **Marketing** (megaphone).
+
+The active panel item is the **deepest** matching section: a breakdown page highlights
+*Breakdowns*, not *Overview*.
+
+### DEMO records
+
+Synthetic records show an amber note at the top: "DEMO - NOT REAL …". R&D adds "NOT FOR
+COMMERCIAL PRODUCTION".

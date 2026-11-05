@@ -12,6 +12,35 @@ Status 2026-11-05, after Milestone 6 (master data, role workspaces and reports).
 - **Image rights.** Product images are the brand's content; they are used only locally for the
   demo and kept out of Git. Confirm with Mintree before using them anywhere else.
 
+## Next phase (R&D, Maintenance, Marketplaces, Marketing, front end) — open
+- **Marketplace access and credentials.**
+  - Amazon: an SP-API developer application authorised by the seller account, plus the seller and
+    marketplace IDs.
+  - Flipkart: a Seller API application.
+  - Myntra and Nykaa: partner API access granted by each channel.
+  - Then each provider's current official API documentation must be verified with the real account
+    before any live call is written. Until then every channel stays *Not configured*,
+    *Awaiting credentials*, *Access required* or *Not implemented*.
+- **Meta Marketing API access**: an app approved for the business portfolio, a system-user token
+  and the ad account ID. Performance figures are entered by hand meanwhile; publishing from the
+  system is not offered.
+- **WhatsApp Business, couriers and bank feeds**: not implemented (listed as such in the
+  Integration Centre).
+- **Brand palette**: not derived from the website yet, because the site is unreachable from the
+  development environment. The accent is one token to replace.
+- **R&D**: Mintree's real ingredient categories, formula totals, required-ingredient policy and
+  approvers. Who may create BOMs from approved formulas is ERPNext's BOM permission
+  (Manufacturing Manager today).
+- **Maintenance**: real equipment list and purchase values (ERPNext requires a value per asset),
+  maintenance teams and intervals, spare-part reorder levels, and whether breakdowns should block
+  work orders (Phase 4).
+- **Marketplace stock shares and safety stock per channel** (DEMO values today), the customer used
+  for each channel's orders, and the dispatch store.
+- **Settlement reconciliation** compares gross sales with ERPNext invoices only. Fees and
+  commission postings (journal entries) are not automated.
+- **Desk-only features remain**: purchase invoices, sales returns, journal entries, stock
+  reconciliation and BOM editing are done in Desk, not React.
+
 ## Needs the client
 - **Legal entity, GSTIN, state.** Company setup on a real site, India Compliance, any tax invoice. The
   development site uses "SAMPLE Mintree Manufacturing" with no GSTIN; nothing it produces is a valid

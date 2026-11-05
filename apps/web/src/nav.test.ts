@@ -62,3 +62,43 @@ describe("navigation follows server permissions", () => {
     expect(accounts && moduleHasPath(accounts, "/sales/deliveries")).toBe(true);
   });
 });
+
+describe("next-phase modules follow server permissions", () => {
+  it("an R&D chemist sees R&D and nothing of maintenance, marketplaces or marketing", () => {
+    const b = boot({
+      Formulation: ["read", "create"],
+      "Research Project": ["read", "create"],
+      "Formulation Trial": ["read", "create", "submit"],
+      "Stability Study": ["read", "create"],
+    });
+    expect(modules(b)).toEqual(["home", "rnd", "setup"]);
+    expect(allPages(b).map((p) => p.to)).toContain("/research/formulations/new");
+  });
+
+  it("a technician sees maintenance pages but cannot register equipment", () => {
+    const b = boot({
+      Asset: ["read"],
+      "Asset Repair": ["read", "create", "write"],
+      "Asset Maintenance": ["read"],
+      "Asset Maintenance Log": ["read", "write", "submit"],
+      Bin: ["read"],
+    });
+    expect(modules(b)).toContain("maintenance");
+    const pages = allPages(b).map((p) => p.to);
+    expect(pages).toContain("/maintenance/breakdowns/new");
+    expect(pages).not.toContain("/maintenance/assets/new");
+  });
+
+  it("marketplace and marketing modules appear only for their roles", () => {
+    expect(
+      modules(boot({ "Marketplace Order": ["read", "create"], "Marketplace Listing": ["read"] })),
+    ).toContain("marketplace");
+    expect(modules(boot({ "Marketing Campaign": ["read"] }))).toContain("marketing");
+    expect(modules(boot({ "Sales Order": ["read"] }))).not.toContain("marketplace");
+  });
+
+  it("deep module pages belong to their module", () => {
+    const b = boot({ Asset: ["read"], "Asset Repair": ["read"] });
+    expect(moduleForPath(visibleModules(b), "/maintenance/breakdowns/ACC-ASR-1")?.key).toBe("maintenance");
+  });
+});

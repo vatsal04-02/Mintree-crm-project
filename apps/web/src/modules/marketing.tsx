@@ -82,9 +82,11 @@ export function MarketingOverview() {
       <ErrorNote error={error} />
       {data?.meta && data.meta.connection_state !== "Connected" && (
         <Note tone="hold">
-          Meta is <strong>{String(data.meta.connection_state)}</strong>. Nothing is read from or published to
-          Meta. Figures below are entered by hand from the ad platform, or are DEMO figures; each table names
-          its source.
+          <span>
+            Meta is <strong>{String(data.meta.connection_state)}</strong>. Nothing is read from or published
+            to Meta. Figures below are entered by hand from the ad platform, or are DEMO figures; each table
+            names its source.
+          </span>
         </Note>
       )}
       {isLoading && <p className="dim">Loading…</p>}

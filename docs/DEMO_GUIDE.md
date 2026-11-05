@@ -18,6 +18,18 @@ A local demonstration that runs on a developer machine. Nothing is deployed to a
 
 ## 1. Extract the public catalogue (needs network access to vmintree.in)
 
+**The cloud development environment cannot reach vmintree.in.** Run the extractor on any machine
+with internet access and Python 3.11 or later. It uses only the standard library: no bench, no
+pip install. From a clone of this repository:
+
+```bash
+git clone https://github.com/vatsal04-02/Mintree-crm-project.git && cd Mintree-crm-project && git checkout claude/festive-feynman-8mue4s
+```
+
+Then run the commands below. Afterwards, commit `data/mintree_website_extraction/` (the cache and
+images are git-ignored), or copy the folder to the bench machine. Extraction is complete only when
+`products.csv` contains rows.
+
 Run these from the repository root:
 
 ```bash
@@ -114,6 +126,59 @@ the scenario printed.
    RM / PM / BULK / FG, batches awaiting QC, batches made, orders, dispatches and receivables.
 10. **Department workspaces:** log in as each sample user to show that everyone sees only their own
     workspace.
+
+## 4b. Next-phase modules in the demo
+
+`reset-demo.sh` also seeds DEMO records for the new modules, through `factory_ops/demo/modules.py`:
+- **R&D:**
+  - a project in progress;
+  - formulation `DEMO-LGB` v1 (approved after a passed trial) and v2 (a draft with a change note);
+  - an accelerated stability study with three readings.
+- **Maintenance:**
+  - six DEMO machines, one per equipment type;
+  - four preventive schedules with tasks;
+  - one open Critical breakdown, and one breakdown closed last month with spare parts issued from
+    stock;
+  - a spare part with a reorder level.
+- **Marketplaces:**
+  - channel shares (Amazon 30 %, Flipkart 25 %, Myntra 15 %, Nykaa 15 %);
+  - only when a website product is on the site: listings on all four channels, 11 DEMO orders
+    (IDs `DEMO-AMZ-0001`…) in mixed states, one return and one Amazon settlement.
+- **Marketing:**
+  - three DEMO campaigns (live, completed, awaiting approval);
+  - six content items across the next three weeks;
+  - 14 weeks of DEMO performance figures, reported apart from real ones.
+- **Finished goods:** 120 units of DEMO opening stock of the website product in FG-STORES (batch
+  `DEMO-OPEN-FG-1`), so **Available to Sell has rows** before the scenario runs.
+
+Walkthrough additions (about 15 minutes):
+
+1. **Available to Sell** (`sample.sales`): the website product's released stock. Then show the
+   **Inventory to publish** page (`sample.marketplace`): the same figure split by channel share and
+   never more in total, with QC Hold stock excluded.
+2. **Marketplace orders** (`sample.marketplace`):
+   - Open a DEMO Amazon order and **Create sales order**. It becomes a D2C Marketplace sales order
+     shipping from FG-STORES.
+   - Enter the same order ID again: it is refused.
+   - Open the Amazon channel: *Not configured*; **Test connection** is refused and logged.
+3. **R&D** (`sample.rnd`, `sample.rndmanager`, `sample.production`):
+   - Open formulation v2 and compare it with v1.
+   - Send it for review; the manager starts the trial.
+   - Record a passed trial; the manager approves, which archives v1.
+   - Production uses **Create BOM**, and the BOM keeps the formulation version.
+4. **Maintenance** (`sample.maintmanager`, `sample.maintenance`):
+   - The overview: equipment status, the open Critical breakdown, tasks due, and last month's
+     downtime and cost.
+   - Record the repair with a spare part; the manager approves closure. The spare part leaves stock
+     and the machine is Active again.
+   - Complete a preventive task: the next one is scheduled.
+5. **Marketing** (`sample.marketingexec`, `sample.marketing`):
+   - The overview: DEMO figures under their own heading, and cost per lead only where leads exist.
+   - Approve the waiting festive campaign.
+   - Take a content item through review to published.
+   - The Meta connection: *Not configured*.
+6. **Integration Centre** (any user): each connection's real state. Nothing claims Connected
+   except the ERP itself.
 
 ## 5. If something goes wrong
 

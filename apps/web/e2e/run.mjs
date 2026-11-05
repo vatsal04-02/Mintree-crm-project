@@ -300,8 +300,13 @@ try {
   await mgmt.page.locator(".page-title .chip").waitFor();
   check("management viewer sees the order but no actions", (await mgmt.page.locator(".page-actions .btn-primary").count()) === 0);
   await go(mgmt, "/integrations");
-  await mgmt.page.getByRole("row").filter({ hasText: "Amazon" }).waitFor();
-  check("Integration Centre lists no connected marketplace", (await mgmt.page.getByRole("row").filter({ hasText: "Amazon" }).getByText("Not implemented").count()) === 1);
+  // states come from the channel records (management may not read them: one "Hidden" row); none may say Connected
+  const mktTable = mgmt.page.getByRole("table", { name: "Marketplaces" });
+  await mktTable.getByRole("row").filter({ hasText: "Amazon" }).waitFor();
+  check(
+    "Integration Centre lists no connected marketplace",
+    (await mktTable.getByRole("row").count()) >= 2 && (await mktTable.getByText("Connected", { exact: true }).count()) === 0,
+  );
 
   /* ============ 8. Every report page loads without an error, for the roles that see it ============ */
   for (const [s, paths] of [

@@ -70,6 +70,10 @@ def seed_demo_site(extraction_dir: str | None = None) -> dict:
 	fg = choose_demo_product(catalogue)
 	if fg:
 		report["fg_bom"] = ensure_fg_bom(fg)
+	from factory_ops.demo.modules import fg_opening_stock, seed_all
+
+	report["fg_opening_stock"] = fg_opening_stock(COMPANY, fg)
+	report["modules"] = seed_all(COMPANY, fg)
 	scenario = {
 		"company": COMPANY,
 		"abbr": ABBR,

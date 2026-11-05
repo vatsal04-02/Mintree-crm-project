@@ -46,15 +46,42 @@ and send `X-Frappe-CSRF-Token` on writes. Generic calls are implemented once in
 Reports (existing): Stock by QC Status, QC Queue, Available to Sell, Dispatch Register, RM PM
 Requirements, Wastage by Reason (factory_ops); Accounts Receivable, Accounts Payable (ERPNext).
 
-## New endpoint (one)
+## Session boot endpoint
 
 | Method | Why the standard API is not enough | Checks |
 |---|---|---|
 | `GET factory_ops.api.factory_os.boot` | The front end needs, in one call, the signed-in user, roles, this session's CSRF token, default company/currency, and which of its DocTypes (read/create/write/submit/cancel) and reports the user may use. Frappe exposes these only inside Desk's boot page, not as an API; deriving them client-side would mean dozens of calls and duplicating Frappe's permission logic. | Refuses Guest (`AuthenticationError`). Read-only; answers with `frappe.has_permission` and `Report.is_permitted` for the same user, so it can never claim more than the server allows. Tests: `tests/test_factory_os_api.py` (3). |
 
-No other endpoint was added. No business logic was added to or duplicated in the front end.
+No business logic is duplicated in the front end: every rule below runs on the server.
 
 ## Website route (new, configuration only)
 
 `factory_ops/hooks.py`: `website_route_rules = [{"from_route": "/factory/<path:app_path>", "to_route": "factory"}]`
 with `factory_ops/www/factory.py` (no cache) serving the built `www/factory.html`.
+
+## Next-phase endpoints and document methods (2026-11-05)
+
+Each one checks permissions on the server; React only shows what the boot answer allows.
+
+| Method | Used by | Server checks | Tests |
+|---|---|---|---|
+| `Formulation.apply_action(action, note)` (doc method) | R&D formulation page | role per action (R&D Chemist / Manager), submitter cannot approve or reject, total meets target before review, a passed trial before approval, a reason to reject | test_research |
+| `Formulation.new_version()` | R&D | R&D roles; not from Draft | test_research, e2e rnd |
+| `Formulation.create_bom(company)` | R&D (shown to users who may create **and** submit BOMs) | Approved only; BULK product; one BOM per version; demo formulations refused outside a demo site | test_research, e2e rnd |
+| `GET factory_ops.api.maintenance.dashboard(company)` | Maintenance overview | section only if the user may read its DocType | test_maintenance |
+| `POST factory_ops.api.maintenance.register_asset(...)` | Register equipment | Asset create + submit; purchase value required | test_maintenance, e2e maintenance |
+| Asset Repair submit (standard) | Approve closure | factory_ops `before_submit`: Maintenance Manager only, with resolution, root cause, technician | test_maintenance |
+| `GET factory_ops.api.marketplace.overview()` | Marketplace overview | Marketplace Order read | test_marketplace |
+| `GET factory_ops.api.marketplace.inventory_allocation(company)` | Inventory to publish | Marketplace Listing read | test_marketplace, e2e marketplace |
+| `POST factory_ops.api.marketplace.refresh_published_quantities(company)` | Inventory to publish | Marketplace Listing write | — |
+| `POST factory_ops.api.marketplace.test_connection(channel)` | Channel page | Marketplace Channel write; logged; refused while not implemented | test_marketplace, e2e marketplace |
+| `POST factory_ops.api.marketplace.webhook?channel=` (guest) | marketplaces, in future | channel webhook secret configured; HMAC-SHA256 signature, constant-time compare; 120 / min; duplicate-safe | test_marketplace |
+| `Marketplace Order.make_sales_order(company)` | Order page | Marketplace Order write + Sales Order create; listing must map every SKU; not cancelled; once | test_marketplace, e2e marketplace |
+| `Marketplace Settlement.reconcile()` | Settlement page | write permission | test_marketplace |
+| `GET factory_ops.api.marketing.overview()` | Marketing overview | Marketing Campaign read | test_marketing |
+| `Marketing Campaign.apply_action` / `Marketing Content.apply_action` | Campaign / content pages | roles per action; submitter cannot decide; reason to reject; creative or caption before review; URL before published | test_marketing, e2e marketing |
+| `Meta Connection.test_connection()` | Meta page | write permission; always refused today (no live call) | test_marketing, e2e marketing |
+| `GET factory_ops.api.integrations.integrations()` | Integration Centre | signed in; marketplace / Meta rows only for roles that may read them | e2e run (no connected marketplace) |
+
+Standard REST (`/api/resource`) is used for every list, form and save, with Frappe's own permission
+checks. Credentials are Password fields: write-only from the screens, never returned to the browser.

@@ -1,5 +1,43 @@
 # Phase 1 test results
 
+## Next phase: front end, R&D, Maintenance, Marketplaces, Marketing (2026-11-05)
+
+All runs are on the final code of this phase, in the development environment, with SAMPLE and DEMO
+data. **Not production-ready.**
+
+| Check | Result |
+| --- | --- |
+| Backend, full `factory_ops` suite on `test.localhost` | **Ran 200 + 3 tests, OK**. All earlier tests kept and passing, plus test_research 13, test_maintenance 8, test_marketplace 15, test_marketing 7 |
+| Front end: type check / lint / unit tests | `tsc -b` clean; `biome check` clean (3 existing CSS warnings); vitest **22/22** (13 earlier + 9: navigation for the new modules, empty-state guidance) |
+| e2e, six priority modules in React (`e2e/run.mjs`), dev site | **44/44** (Integration Centre check rewritten for record-based states, same intent: no marketplace shown connected) |
+| e2e, new modules (`e2e/modules.mjs`), dev site | R&D **14/14**, Maintenance **15/15**, Marketplaces **10/10**, Marketing **9/9** (47/47 combined run) |
+| Demo site rebuilt from nothing with all modules (fixture catalogue) | built with no errors; Available to Sell returns the website product (120 released units); scenario **22/22**; new-module e2e **49/49**; workspace check **55/55**; demo browser check **17/18**: the item image cannot load because the fixture image URLs are fake (the local-image path passed with a downloaded file) |
+| Demo site rebuilt again without any catalogue | no invented product; marketplace orders correctly not seeded |
+
+The live website was **not** read: `vmintree.in` is unreachable from this environment.
+
+Found and fixed during this phase (each covered by a test):
+- **R&D:**
+  - Frappe v16 rejects `max()` in a field list (new-version numbering).
+  - BOM creation needed an explicit company.
+  - BOM rights belong to manufacturing, not R&D.
+- **Maintenance:**
+  - ERPNext computes a task's next due date only in the browser.
+  - A repair's spare-part cost was 0 through the API.
+  - ERPNext's own code needs Asset Movement rights on registration, and schedule-write and
+    next-log-create rights when a technician completes a task.
+  - The closure rules had to move to save, because ERPNext's pre-submit check runs first.
+  - The active menu item matched the shallowest section.
+- **Marketplaces:**
+  - A retried push lost its payload.
+  - Marketplace orders defaulted to the QC Hold store; the QC guard refused them, and they now ship
+    from the released store.
+- **Demo:** finished-goods opening stock went straight to FG-STORES. It now goes into QC Hold and
+  is released through a real QC Release.
+- **UI:**
+  - The Meta notice broke into columns.
+  - "never" was shown for connections that do not synchronise.
+
 ## Local demo preparation (2026-11-05)
 
 **The live website was not read.** This environment's network policy refused `vmintree.in`
